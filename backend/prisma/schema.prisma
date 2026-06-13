@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  BARBER
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  phone        String?
+  role         Role     @default(CLIENT)
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  barber        Barber?
+  appointments  Appointment[]  @relation("ClientAppointments")
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Barber {
+  id       String  @id @default(uuid())
+  userId   String  @unique @map("user_id")
+  bio      String?
+  isActive Boolean @default(true) @map("is_active")
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services     BarberService[]
+  schedules    Schedule[]
+  appointments Appointment[]
+
+  @@map("barbers")
+}
+
+model Service {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  durationMin Int     @map("duration_min")
+  price       Decimal @db.Decimal(10, 2)
+  isActive    Boolean @default(true) @map("is_active")
+
+  barbers      BarberService[]
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+model BarberService {
+  barberId  String @map("barber_id")
+  serviceId String @map("service_id")
+
+  barber  Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, serviceId])
+  @@map("barber_services")
+}
+
+model Schedule {
+  id        String  @id @default(uuid())
+  barberId  String  @map("barber_id")
+  dayOfWeek Int     @map("day_of_week") // 0=Domingo ... 6=Sábado
+  startTime String  @map("start_time")  // "09:00"
+  endTime   String  @map("end_time")    // "18:00"
+  isActive  Boolean @default(true) @map("is_active")
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
+}
+
+model Appointment {
+  id        String            @id @default(uuid())
+  clientId  String            @map("client_id")
+  barberId  String            @map("barber_id")
+  serviceId String            @map("service_id")
+  startAt   DateTime          @map("start_at")
+  endAt     DateTime          @map("end_at")
+  status    AppointmentStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  client  User    @relation("ClientAppointments", fields: [clientId], references: [id])
+  barber  Barber  @relation(fields: [barberId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@map("appointments")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}

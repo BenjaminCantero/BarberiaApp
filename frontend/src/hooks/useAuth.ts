@@ -1,0 +1,51 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { authApi, type LoginPayload, type RegisterPayload } from '../api/auth.api';
+import { useAuthStore } from '../store/auth.store';
+
+export function useLogin() {
+  const { login } = useAuthStore();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: (data: LoginPayload) => authApi.login(data),
+    onSuccess: ({ data }) => {
+      login(data.accessToken, data.user as Parameters<typeof login>[1]);
+      navigate('/dashboard/client');
+    },
+  });
+}
+
+export function useRegister() {
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: (data: RegisterPayload) => authApi.register(data),
+    onSuccess: () => navigate('/login'),
+  });
+}
+
+export function useLogout() {
+  const { logout } = useAuthStore();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => authApi.logout(),
+    onSettled: () => {
+      logout();
+      queryClient.clear();
+      navigate('/login');
+    },
+  });
+}
+
+export function useCurrentUser() {
+  const { isAuthenticated } = useAuthStore();
+  return useQuery({
+    queryKey: ['me'],
+    queryFn: () => authApi.me().then((r) => r.data),
+    enabled: isAuthenticated(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
