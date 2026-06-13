@@ -2,6 +2,13 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import * as barberService from '../services/barber.service';
 
+export async function getMyBarber(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const barber = await barberService.getMyBarber(req.user!.userId);
+    res.json(barber);
+  } catch (err) { next(err); }
+}
+
 export async function listBarbers(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const barbers = await barberService.listBarbers();

@@ -6,6 +6,8 @@ export function useMyAppointments(filters?: { status?: AppointmentStatus; date?:
     queryKey: ['appointments', 'my', filters],
     queryFn: () => appointmentApi.listMine(filters).then((r) => r.data),
     staleTime: 30_000,
+    // Refresca automáticamente cuando la ventana vuelve a tener foco
+    refetchOnWindowFocus: true,
   });
 }
 

@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { barberApi, type ScheduleEntry } from '../api/barber.api';
 
+export function useMyBarber() {
+  return useQuery({
+    queryKey: ['barbers', 'me'],
+    queryFn: () => barberApi.getMe().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useBarbers() {
   return useQuery({
     queryKey: ['barbers'],

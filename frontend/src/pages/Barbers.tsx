@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useBarbers } from '../hooks/useBarbers';
 import { BarberCard } from '../components/BarberCard';
+import { AppNavbar } from '../components/AppNavbar';
 
 export function Barbers() {
   const { data: barbers, isLoading, isError } = useBarbers();
@@ -13,39 +13,40 @@ export function Barbers() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Nav */}
-      <nav className="bg-white border-b px-8 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-brand-600">BarberBook</Link>
-        <div className="flex gap-4">
-          <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900">Entrar</Link>
-          <Link to="/register" className="text-sm bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700">
-            Registro
-          </Link>
-        </div>
-      </nav>
+    <div className="app-shell">
+      <AppNavbar />
 
-      <main className="max-w-5xl mx-auto px-4 py-10">
+      <main className="page-container">
+        <div className="mb-8 grid gap-6 rounded-lg bg-slate-950 px-5 py-8 text-white shadow-2xl shadow-slate-950/20 md:grid-cols-[1fr_21rem] md:p-8">
+          <div>
+            <p className="section-eyebrow text-brand-300">Catálogo BarberBook</p>
+            <h1 className="mt-3 text-4xl font-black tracking-normal sm:text-5xl">Encuentra tu próximo corte.</h1>
+            <p className="mt-3 max-w-2xl text-slate-300">
+              Revisa perfiles, servicios y disponibilidad para reservar con el barbero que mejor calce con tu estilo.
+            </p>
+          </div>
+          <div className="grid content-end gap-2 text-sm text-slate-300">
+            <span className="chip w-fit border-brand-400/40 bg-brand-400/10 text-brand-200">
+              {filtered?.length ?? 0} disponible{filtered?.length === 1 ? '' : 's'}
+            </span>
+            <p>Busca por nombre, corte o servicio y entra directo al perfil para reservar.</p>
+          </div>
+        </div>
+
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Nuestros barberos</h1>
-          <p className="text-gray-500">Elige tu barbero favorito y reserva tu cita</p>
-        </div>
-
-        {/* Búsqueda */}
-        <div className="mb-6">
           <input
             type="text"
             placeholder="Buscar por nombre o servicio..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full max-w-md border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="input-field max-w-xl shadow-sm"
           />
         </div>
 
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
+              <div key={i} className="panel p-6 animate-pulse">
                 <div className="flex gap-4 mb-4">
                   <div className="w-14 h-14 rounded-full bg-gray-200" />
                   <div className="flex-1 space-y-2">
@@ -63,13 +64,13 @@ export function Barbers() {
         )}
 
         {isError && (
-          <div className="text-center py-12 text-red-500">
+          <div className="panel py-12 text-center text-red-600">
             Error al cargar los barberos. Intenta nuevamente.
           </div>
         )}
 
         {!isLoading && filtered?.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="panel py-12 text-center text-slate-500">
             No se encontraron barberos con ese criterio.
           </div>
         )}

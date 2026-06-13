@@ -27,38 +27,35 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
-      {/* Cabecera */}
+    <div className="panel flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-bold text-gray-900">{service.name}</p>
-          <p className="text-sm text-gray-500">{formatDate(startAt)} – {new Date(endAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="text-lg font-black text-slate-950">{service.name}</p>
+          <p className="text-sm font-medium text-slate-500">{formatDate(startAt)} – {new Date(endAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <StatusBadge status={status} />
       </div>
 
-      {/* Detalles según quién ve */}
-      <div className="text-sm text-gray-600 space-y-1">
+      <div className="space-y-1 text-sm text-slate-600">
         {viewAs === 'CLIENT' && (
-          <p>Barbero: <span className="font-medium text-gray-800">{barber.user.name}</span></p>
+          <p>Barbero: <span className="font-bold text-slate-800">{barber.user.name}</span></p>
         )}
         {viewAs !== 'CLIENT' && (
-          <p>Cliente: <span className="font-medium text-gray-800">{client.name}</span>
-            {client.phone && <span className="text-gray-400"> · {client.phone}</span>}
+          <p>Cliente: <span className="font-bold text-slate-800">{client.name}</span>
+            {client.phone && <span className="text-slate-400"> · {client.phone}</span>}
           </p>
         )}
-        <p>Servicio: <span className="font-medium">{service.durationMin} min · <span className="text-brand-600">${service.price}</span></span></p>
-        {notes && <p className="italic text-gray-400">"{notes}"</p>}
+        <p>Servicio: <span className="font-bold">{service.durationMin} min · <span className="text-brand-700">${service.price}</span></span></p>
+        {notes && <p className="italic text-slate-400">"{notes}"</p>}
       </div>
 
-      {/* Acciones */}
       {!isPast && status !== 'CANCELLED' && status !== 'COMPLETED' && (
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
+        <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
           {viewAs !== 'CLIENT' && status === 'PENDING' && (
             <button
               onClick={() => handleStatus('CONFIRMED')}
               disabled={update.isPending}
-              className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
             >
               Confirmar
             </button>
@@ -67,7 +64,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
             <button
               onClick={() => handleStatus('COMPLETED')}
               disabled={update.isPending}
-              className="text-xs bg-gray-700 text-white px-3 py-1.5 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-900 disabled:opacity-50"
             >
               Marcar completada
             </button>
@@ -76,7 +73,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
             <button
               onClick={() => handleStatus('CANCELLED')}
               disabled={update.isPending}
-              className="text-xs border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
             >
               Cancelar
             </button>

@@ -25,12 +25,15 @@ export function useLogin(redirectTo?: string) {
   });
 }
 
-export function useRegister() {
+export function useRegister(redirectTo?: string) {
   const navigate = useNavigate();
 
   return useMutation({
     mutationFn: (data: RegisterPayload) => authApi.register(data),
-    onSuccess: () => navigate('/login'),
+    onSuccess: () => {
+      const target = redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login';
+      navigate(target);
+    },
   });
 }
 

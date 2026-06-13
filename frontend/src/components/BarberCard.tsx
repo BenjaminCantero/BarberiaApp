@@ -16,51 +16,47 @@ export function BarberCard({ barber }: Props) {
     .slice(0, 2);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 hover:shadow-md transition-shadow">
-      {/* Avatar */}
+    <div className="panel group flex flex-col gap-4 p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/10">
       <div className="flex items-center gap-4">
         {barber.user.avatarUrl ? (
           <img
             src={barber.user.avatarUrl}
             alt={barber.user.name}
-            className="w-14 h-14 rounded-full object-cover"
+            className="h-16 w-16 rounded-lg object-cover ring-4 ring-brand-100"
           />
         ) : (
-          <div className="w-14 h-14 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-lg font-bold">
+          <div className="grid h-16 w-16 place-items-center rounded-lg bg-slate-950 text-lg font-black text-brand-300 shadow-lg shadow-slate-950/15">
             {initials}
           </div>
         )}
-        <div>
-          <h3 className="font-bold text-gray-900">{barber.user.name}</h3>
+        <div className="min-w-0">
+          <h3 className="truncate text-lg font-black text-slate-950">{barber.user.name}</h3>
           {barber.user.phone && (
-            <p className="text-sm text-gray-500">{barber.user.phone}</p>
+            <p className="text-sm text-slate-500">{barber.user.phone}</p>
           )}
         </div>
       </div>
 
-      {/* Bio */}
       {barber.bio && (
-        <p className="text-sm text-gray-600 line-clamp-2">{barber.bio}</p>
+        <p className="line-clamp-2 text-sm leading-6 text-slate-600">{barber.bio}</p>
       )}
 
-      {/* Servicios */}
       <div className="flex flex-wrap gap-2">
         {barber.services.slice(0, 3).map(({ service }) => (
           <span
             key={service.id}
-            className="text-xs bg-brand-50 text-brand-700 px-2 py-1 rounded-full"
+            className="chip"
           >
             {service.name} · {service.durationMin}min · ${service.price}
           </span>
         ))}
         {barber.services.length > 3 && (
-          <span className="text-xs text-gray-400">+{barber.services.length - 3} más</span>
+          <span className="text-xs font-semibold text-slate-400">+{barber.services.length - 3} más</span>
         )}
       </div>
 
-      {/* Horario resumen */}
       {barber.schedules && barber.schedules.length > 0 && (
-        <div className="text-xs text-gray-500">
+        <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
           Disponible:{' '}
           {barber.schedules
             .filter((s) => s.isActive)
@@ -71,7 +67,7 @@ export function BarberCard({ barber }: Props) {
 
       <Link
         to={`/barbers/${barber.id}`}
-        className="mt-auto text-center bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+        className="btn-primary mt-auto"
       >
         Ver perfil y reservar
       </Link>

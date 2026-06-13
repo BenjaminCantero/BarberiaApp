@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 
 import { swaggerSpec } from './lib/swagger';
@@ -10,9 +12,14 @@ import authRoutes from './routes/auth.routes';
 import barberRoutes from './routes/barber.routes';
 import serviceRoutes from './routes/service.routes';
 import appointmentRoutes from './routes/appointment.routes';
+import userRoutes from './routes/user.routes';
+import adminRoutes from './routes/admin.routes';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
+
+// Seguridad: headers HTTP
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(
   cors({
@@ -23,15 +30,26 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Rate limiting en endpoints de autenticación (10 req / 15 min por IP)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' },
+});
+
 // Swagger UI
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // Rutas
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/barbers', barberRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

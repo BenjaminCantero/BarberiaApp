@@ -1,29 +1,29 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
-import { useCurrentUser, useLogout } from '../hooks/useAuth';
-import { useBarbers, useBarberSchedule, useSetSchedule } from '../hooks/useBarbers';
+import { useLogout } from '../hooks/useAuth';
+import { useMyBarber, useBarberSchedule, useSetSchedule } from '../hooks/useBarbers';
 import { useMyAppointments } from '../hooks/useAppointments';
 import { AppointmentCard } from '../components/AppointmentCard';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
+function localDateStr(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function BarberDashboard() {
   const { user } = useAuthStore();
-  const { data: profile } = useCurrentUser();
-  const { data: barbers } = useBarbers();
   const logout = useLogout();
 
-  const myBarber = barbers?.find((b) => b.user.email === profile?.email);
-
+  const { data: myBarber, isLoading: loadingBarber } = useMyBarber();
   const { data: schedule } = useBarberSchedule(myBarber?.id ?? '');
   const setScheduleMutation = useSetSchedule(myBarber?.id ?? '');
 
-  const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [selectedDate, setSelectedDate] = useState(localDateStr());
   const { data: appointments, isLoading: loadingAppts } = useMyAppointments({ date: selectedDate });
 
   const [editSchedule, setEditSchedule] = useState(false);
@@ -57,9 +57,8 @@ export function BarberDashboard() {
       setScheduleForm((prev) => prev.filter((s) => s.dayOfWeek !== day));
     } else {
       setScheduleForm((prev) =>
-        [...prev, { dayOfWeek: day, startTime: '09:00', endTime: '18:00', isActive: true }].sort(
-          (a, b) => a.dayOfWeek - b.dayOfWeek,
-        ),
+        [...prev, { dayOfWeek: day, startTime: '09:00', endTime: '18:00', isActive: true }]
+          .sort((a, b) => a.dayOfWeek - b.dayOfWeek),
       );
     }
   };
@@ -67,35 +66,52 @@ export function BarberDashboard() {
   const pendingCount = appointments?.filter((a) => a.status === 'PENDING').length ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b px-8 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-brand-600">BarberBook</Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">Hola, {user?.name ?? '...'}</span>
-          <button onClick={() => logout.mutate()} className="text-sm text-red-600 hover:underline">
-            Cerrar sesión
+    <div className="app-shell">
+      <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
+        <Link to="/" className="brand-mark">
+          <span className="brand-icon">BB</span>
+          <span>BarberBook</span>
+        </Link>
+        <div className="flex items-center gap-3">
+          {myBarber && (
+            <Link
+              to={`/barbers/${myBarber.id}`}
+              className="hidden text-sm font-semibold text-slate-500 hover:text-slate-900 sm:inline"
+            >
+              Perfil público
+            </Link>
+          )}
+          <Link to="/profile" className="text-sm font-medium text-slate-500 hover:text-slate-900">
+            Mi perfil
+          </Link>
+          <span className="text-sm font-medium text-slate-600">{user?.name?.split(' ')[0]}</span>
+          <button onClick={() => logout.mutate()} className="text-sm font-bold text-red-600 hover:underline">
+            Salir
           </button>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Panel del barbero</h1>
+      <main className="mx-auto max-w-4xl px-4 py-10">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-950 p-6 text-white">
+          <div>
+            <p className="section-eyebrow text-brand-300">Panel barbero</p>
+            <h1 className="mt-2 text-3xl font-black">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+          </div>
           {pendingCount > 0 && (
-            <span className="bg-yellow-100 text-yellow-800 text-sm font-semibold px-3 py-1 rounded-full">
+            <span className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-black text-yellow-900">
               {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
             </span>
           )}
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit">
+        <div className="mb-6 flex gap-1 w-fit rounded-xl bg-slate-100 p-1">
           {(['agenda', 'schedule', 'services'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`rounded-lg px-5 py-2 text-sm font-bold transition-colors ${
+                activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               {{ agenda: 'Agenda', schedule: 'Horario', services: 'Servicios' }[tab]}
@@ -103,31 +119,31 @@ export function BarberDashboard() {
           ))}
         </div>
 
-        {/* --- AGENDA --- */}
+        {/* AGENDA */}
         {activeTab === 'agenda' && (
           <div className="space-y-5">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">Fecha:</label>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-bold text-slate-700">Fecha:</label>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="input-field max-w-xs"
               />
             </div>
 
             {loadingAppts && (
               <div className="space-y-3">
                 {[1, 2].map((i) => (
-                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse h-28" />
+                  <div key={i} className="panel animate-pulse p-5 h-28" />
                 ))}
               </div>
             )}
 
             {!loadingAppts && (!appointments || appointments.length === 0) && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+              <div className="panel p-10 text-center">
                 <p className="text-3xl mb-3">📭</p>
-                <p className="font-medium text-gray-600">Sin citas este día</p>
+                <p className="font-bold text-slate-600">Sin citas este día</p>
               </div>
             )}
 
@@ -141,77 +157,70 @@ export function BarberDashboard() {
           </div>
         )}
 
-        {/* --- HORARIO --- */}
+        {/* HORARIO */}
         {activeTab === 'schedule' && (
-          <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+          <div className="panel p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-gray-800">Mi horario semanal</h2>
+              <h2 className="font-black text-slate-900">Horario semanal</h2>
               {!editSchedule && (
-                <button onClick={handleOpenSchedule} className="text-sm text-brand-600 hover:underline font-medium">
+                <button onClick={handleOpenSchedule} className="text-sm font-bold text-brand-700 hover:underline">
                   Editar
                 </button>
               )}
             </div>
 
-            {!editSchedule && (
+            {loadingBarber && <p className="text-sm text-slate-400">Cargando horario...</p>}
+
+            {!editSchedule && !loadingBarber && (
               schedule && schedule.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {schedule.filter((s) => s.isActive).map((s) => (
-                    <div key={s.id} className="flex justify-between py-2 border-b border-gray-50 last:border-0 text-sm">
-                      <span className="text-gray-600 font-medium">{DAY_NAMES[s.dayOfWeek]}</span>
-                      <span className="text-gray-800">{s.startTime} – {s.endTime}</span>
+                    <div key={s.id} className="flex justify-between py-2 border-b border-slate-50 last:border-0 text-sm">
+                      <span className="font-medium text-slate-600">{DAY_NAMES[s.dayOfWeek]}</span>
+                      <span className="font-black text-slate-900">{s.startTime} – {s.endTime}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">Sin horario configurado. Edítalo para empezar a recibir citas.</p>
+                <p className="text-sm text-slate-400">Sin horario. Configúralo para empezar a recibir citas.</p>
               )
             )}
 
             {editSchedule && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => {
                   const entry = scheduleForm.find((s) => s.dayOfWeek === day);
                   return (
-                    <div key={day} className="flex items-center gap-4 flex-wrap py-2 border-b border-gray-50">
-                      <label className="flex items-center gap-2 w-28 cursor-pointer">
+                    <div key={day} className="flex flex-wrap items-center gap-4 border-b border-slate-50 py-2 last:border-0">
+                      <label className="flex w-28 cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
                           checked={!!entry}
                           onChange={() => toggleDay(day)}
-                          className="accent-brand-600 w-4 h-4"
+                          className="h-4 w-4 accent-brand-600"
                         />
-                        <span className="text-sm text-gray-700 font-medium">{DAY_NAMES[day]}</span>
+                        <span className="text-sm font-bold text-slate-700">{DAY_NAMES[day]}</span>
                       </label>
                       {entry && (
                         <>
-                          <input
-                            type="time"
-                            value={entry.startTime}
+                          <input type="time" value={entry.startTime}
                             onChange={(e) => updateEntry(day, 'startTime', e.target.value)}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm"
-                          />
-                          <span className="text-gray-400 text-sm">a</span>
-                          <input
-                            type="time"
-                            value={entry.endTime}
+                            className="rounded border border-slate-300 px-2 py-1 text-sm" />
+                          <span className="text-slate-400 text-sm">a</span>
+                          <input type="time" value={entry.endTime}
                             onChange={(e) => updateEntry(day, 'endTime', e.target.value)}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm"
-                          />
+                            className="rounded border border-slate-300 px-2 py-1 text-sm" />
                         </>
                       )}
                     </div>
                   );
                 })}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleSaveSchedule}
-                    disabled={setScheduleMutation.isPending}
-                    className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-                  >
-                    {setScheduleMutation.isPending ? 'Guardando...' : 'Guardar horario'}
+                <div className="flex gap-3 pt-3">
+                  <button onClick={handleSaveSchedule} disabled={setScheduleMutation.isPending}
+                    className="btn-brand px-5">
+                    {setScheduleMutation.isPending ? 'Guardando...' : 'Guardar'}
                   </button>
-                  <button onClick={() => setEditSchedule(false)} className="text-sm text-gray-500 hover:text-gray-700">
+                  <button onClick={() => setEditSchedule(false)} className="text-sm font-bold text-slate-500 hover:text-slate-700">
                     Cancelar
                   </button>
                 </div>
@@ -220,22 +229,24 @@ export function BarberDashboard() {
           </div>
         )}
 
-        {/* --- SERVICIOS --- */}
+        {/* SERVICIOS */}
         {activeTab === 'services' && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-gray-800 mb-4">Mis servicios</h2>
-            {!myBarber?.services.length ? (
-              <p className="text-sm text-gray-400">No tienes servicios asignados.</p>
-            ) : (
+          <div className="panel p-6">
+            <h2 className="mb-4 font-black text-slate-900">Mis servicios</h2>
+            {loadingBarber && <p className="text-sm text-slate-400">Cargando...</p>}
+            {!loadingBarber && !myBarber?.services.length && (
+              <p className="text-sm text-slate-400">No tienes servicios asignados.</p>
+            )}
+            {!loadingBarber && myBarber?.services && myBarber.services.length > 0 && (
               <div className="space-y-3">
                 {myBarber.services.map(({ service }) => (
-                  <div key={service.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                  <div key={service.id} className="flex items-center justify-between border-b border-slate-50 pb-3 last:border-0">
                     <div>
-                      <p className="font-medium text-gray-800">{service.name}</p>
-                      {service.description && <p className="text-xs text-gray-500">{service.description}</p>}
-                      <p className="text-xs text-gray-400 mt-0.5">{service.durationMin} min</p>
+                      <p className="font-black text-slate-900">{service.name}</p>
+                      {service.description && <p className="text-xs text-slate-500">{service.description}</p>}
+                      <p className="text-xs text-slate-400">{service.durationMin} min</p>
                     </div>
-                    <span className="text-brand-600 font-bold text-lg">${service.price}</span>
+                    <span className="text-xl font-black text-brand-700">${service.price}</span>
                   </div>
                 ))}
               </div>

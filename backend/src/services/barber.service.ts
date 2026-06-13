@@ -3,6 +3,22 @@ import { AppError } from '../middlewares/error.middleware';
 import type { UpdateBarberInput, SetScheduleInput } from '../schemas/barber.schema';
 import { getAvailableSlots } from './availability.service';
 
+export async function getMyBarber(userId: string) {
+  const barber = await prisma.barber.findUnique({
+    where: { userId },
+    include: {
+      user: { select: { name: true, email: true, phone: true, avatarUrl: true } },
+      services: {
+        include: { service: true },
+        where: { service: { isActive: true } },
+      },
+      schedules: { where: { isActive: true }, orderBy: { dayOfWeek: 'asc' } },
+    },
+  });
+  if (!barber) throw new AppError(404, 'Perfil de barbero no encontrado');
+  return barber;
+}
+
 export async function listBarbers() {
   return prisma.barber.findMany({
     where: { isActive: true },

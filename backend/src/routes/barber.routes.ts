@@ -20,6 +20,22 @@ const router = Router();
 
 /**
  * @swagger
+ * /barbers/me:
+ *   get:
+ *     summary: Obtener el perfil del barbero autenticado
+ *     tags: [Barbers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil completo del barbero con servicios y horario
+ *       404:
+ *         description: Perfil de barbero no encontrado para este usuario
+ */
+router.get('/me', authenticate, authorize('BARBER', 'ADMIN'), barberController.getMyBarber);
+
+/**
+ * @swagger
  * /barbers:
  *   get:
  *     summary: Listar todos los barberos activos

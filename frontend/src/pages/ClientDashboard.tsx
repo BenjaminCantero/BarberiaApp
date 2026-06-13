@@ -30,26 +30,35 @@ export function ClientDashboard() {
   const display = activeFilter ? appointments : upcoming;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b px-8 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-brand-600">BarberBook</Link>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-600 text-sm">Hola, {user?.name ?? '...'}</span>
-          <Link to="/barbers" className="text-sm text-brand-600 hover:underline font-medium">
+    <div className="app-shell">
+      <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
+        <Link to="/" className="brand-mark">
+          <span className="brand-icon">BB</span>
+          <span>BarberBook</span>
+        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-slate-600">Hola, {user?.name ?? '...'}</span>
+          <Link to="/barbers" className="text-sm font-bold text-brand-700 hover:underline">
             Reservar cita
           </Link>
-          <button onClick={() => logout.mutate()} className="text-sm text-red-600 hover:underline">
+          <Link to="/profile" className="text-sm font-medium text-slate-500 hover:text-slate-900">
+            Mi perfil
+          </Link>
+          <button onClick={() => logout.mutate()} className="text-sm font-bold text-red-600 hover:underline">
             Cerrar sesión
           </button>
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Mis citas</h1>
+      <main className="mx-auto max-w-4xl px-4 py-10">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-950 p-6 text-white">
+          <div>
+            <p className="section-eyebrow text-brand-300">Panel cliente</p>
+            <h1 className="mt-2 text-3xl font-black">Mis citas</h1>
+          </div>
           <Link
             to="/barbers"
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+            className="btn-brand"
           >
             + Nueva reserva
           </Link>
@@ -57,24 +66,24 @@ export function ClientDashboard() {
 
         {/* Banner reserva exitosa */}
         {justBooked && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
-            <p className="text-green-800 font-medium">¡Reserva creada!</p>
-            <p className="text-green-600 text-sm mt-0.5">
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-4">
+            <p className="font-black text-emerald-800">¡Reserva creada!</p>
+            <p className="mt-0.5 text-sm text-emerald-700">
               Tu cita está pendiente de confirmación por el barbero.
             </p>
           </div>
         )}
 
         {/* Filtros */}
-        <div className="flex gap-2 flex-wrap mb-6">
+        <div className="mb-6 flex flex-wrap gap-2">
           {FILTERS.map((f) => (
             <button
               key={String(f.value)}
               onClick={() => setActiveFilter(f.value)}
-              className={`text-sm px-4 py-1.5 rounded-full border transition-colors ${
+              className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
                 activeFilter === f.value
-                  ? 'bg-brand-600 text-white border-brand-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-brand-400'
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-slate-300 bg-white text-slate-600 hover:border-brand-400'
               }`}
             >
               {f.label}
@@ -86,7 +95,7 @@ export function ClientDashboard() {
         {isLoading && (
           <div className="space-y-4">
             {[1, 2].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse space-y-3">
+              <div key={i} className="panel animate-pulse space-y-3 p-5">
                 <div className="h-4 bg-gray-200 rounded w-1/3" />
                 <div className="h-3 bg-gray-200 rounded w-1/2" />
                 <div className="h-3 bg-gray-200 rounded w-2/3" />
@@ -96,17 +105,16 @@ export function ClientDashboard() {
         )}
 
         {!isLoading && (!display || display.length === 0) && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-            <p className="text-4xl mb-3">📅</p>
-            <p className="text-lg font-medium text-gray-600">
+          <div className="panel p-10 text-center">
+            <p className="text-lg font-black text-slate-700">
               {activeFilter ? 'No hay citas con este filtro' : 'No tienes citas próximas'}
             </p>
-            <p className="text-sm text-gray-400 mt-1 mb-5">
+            <p className="mb-5 mt-1 text-sm text-slate-400">
               Explora nuestros barberos y reserva tu primera cita.
             </p>
             <Link
               to="/barbers"
-              className="inline-block bg-brand-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+              className="btn-brand"
             >
               Ver barberos
             </Link>

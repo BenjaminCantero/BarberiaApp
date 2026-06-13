@@ -40,6 +40,8 @@ export const barberApi = {
 
   getById: (id: string) => api.get<Barber>(`/barbers/${id}`),
 
+  getMe: () => api.get<Barber>('/barbers/me'),
+
   update: (id: string, data: { bio?: string; isActive?: boolean }) =>
     api.patch<Barber>(`/barbers/${id}`, data),
 
