@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -38,6 +39,9 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' },
 });
+
+// Archivos estáticos — diplomas/certificados subidos
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Swagger UI
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

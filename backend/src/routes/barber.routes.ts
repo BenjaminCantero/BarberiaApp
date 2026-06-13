@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import * as barberController from '../controllers/barber.controller';
+import * as certController from '../controllers/certificate.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
+import { certificateUpload } from '../lib/upload';
 import {
   updateBarberSchema,
   setScheduleSchema,
@@ -246,6 +248,24 @@ router.delete(
   authenticate,
   authorize('BARBER', 'ADMIN'),
   barberController.removeService,
+);
+
+// Certificados / diplomas
+router.get('/:id/certificates', certController.list);
+
+router.post(
+  '/:id/certificates',
+  authenticate,
+  authorize('BARBER', 'ADMIN'),
+  certificateUpload.single('file'),
+  certController.upload,
+);
+
+router.delete(
+  '/:id/certificates/:certId',
+  authenticate,
+  authorize('BARBER', 'ADMIN'),
+  certController.remove,
 );
 
 export default router;

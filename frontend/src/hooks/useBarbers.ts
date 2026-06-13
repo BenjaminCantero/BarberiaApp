@@ -36,7 +36,7 @@ export function useAvailability(barberId: string, date: string, serviceId?: stri
   return useQuery({
     queryKey: ['availability', barberId, date, serviceId],
     queryFn: () => barberApi.getAvailability(barberId, date, serviceId).then((r) => r.data),
-    enabled: !!barberId && !!date,
+    enabled: !!barberId && !!date && !!serviceId,
     staleTime: 30_000,
   });
 }

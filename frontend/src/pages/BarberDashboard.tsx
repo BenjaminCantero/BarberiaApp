@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { useLogout } from '../hooks/useAuth';
 import { useMyBarber, useBarberSchedule, useSetSchedule } from '../hooks/useBarbers';
 import { useMyAppointments } from '../hooks/useAppointments';
 import { AppointmentCard } from '../components/AppointmentCard';
+import { useCertificates, useUploadCertificate, useDeleteCertificate } from '../hooks/useCertificates';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -30,7 +31,17 @@ export function BarberDashboard() {
   const [scheduleForm, setScheduleForm] = useState(
     [1, 2, 3, 4, 5].map((day) => ({ dayOfWeek: day, startTime: '09:00', endTime: '18:00', isActive: true })),
   );
-  const [activeTab, setActiveTab] = useState<'agenda' | 'schedule' | 'services'>('agenda');
+  const [activeTab, setActiveTab] = useState<'agenda' | 'schedule' | 'services' | 'certificates'>('agenda');
+
+  // Certificados
+  const { data: certificates, isLoading: loadingCerts } = useCertificates(myBarber?.id ?? '');
+  const uploadCert = useUploadCertificate(myBarber?.id ?? '');
+  const deleteCert = useDeleteCertificate(myBarber?.id ?? '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [certTitle, setCertTitle] = useState('');
+  const [certDesc, setCertDesc] = useState('');
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const [certMsg, setCertMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const handleOpenSchedule = () => {
     if (schedule && schedule.length > 0) {
@@ -105,16 +116,16 @@ export function BarberDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-1 w-fit rounded-xl bg-slate-100 p-1">
-          {(['agenda', 'schedule', 'services'] as const).map((tab) => (
+        <div className="mb-6 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+          {(['agenda', 'schedule', 'services', 'certificates'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`rounded-lg px-5 py-2 text-sm font-bold transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
                 activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              {{ agenda: 'Agenda', schedule: 'Horario', services: 'Servicios' }[tab]}
+              {{ agenda: 'Agenda', schedule: 'Horario', services: 'Servicios', certificates: 'Diplomas' }[tab]}
             </button>
           ))}
         </div>
@@ -253,6 +264,156 @@ export function BarberDashboard() {
             )}
           </div>
         )}
+        {/* DIPLOMAS / CERTIFICADOS */}
+        {activeTab === 'certificates' && (
+          <div className="space-y-6">
+            {/* Formulario subida */}
+            <form
+              className="panel p-6 space-y-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setCertMsg(null);
+                if (!certFile) { setCertMsg({ ok: false, text: 'Selecciona un archivo.' }); return; }
+                try {
+                  await uploadCert.mutateAsync({ file: certFile, title: certTitle, description: certDesc || undefined });
+                  setCertTitle('');
+                  setCertDesc('');
+                  setCertFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  setCertMsg({ ok: true, text: 'Diploma subido correctamente.' });
+                } catch (err: unknown) {
+                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                  setCertMsg({ ok: false, text: msg ?? 'Error al subir el archivo.' });
+                }
+              }}
+            >
+              <h2 className="font-black text-slate-900">Subir diploma o certificado</h2>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Título *
+                </label>
+                <input
+                  className="input-field"
+                  value={certTitle}
+                  onChange={(e) => setCertTitle(e.target.value)}
+                  required
+                  placeholder="Ej: Máster en Barbería Clásica"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Descripción (opcional)
+                </label>
+                <input
+                  className="input-field"
+                  value={certDesc}
+                  onChange={(e) => setCertDesc(e.target.value)}
+                  placeholder="Centro, año, etc."
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Archivo (JPG, PNG o PDF · máx. 10 MB)
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,application/pdf"
+                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-brand-700"
+                  onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
+                  required
+                />
+              </div>
+
+              {certMsg && (
+                <p className={`text-sm font-medium ${certMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {certMsg.text}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="btn-primary px-6"
+                disabled={uploadCert.isPending}
+              >
+                {uploadCert.isPending ? 'Subiendo...' : 'Subir archivo'}
+              </button>
+            </form>
+
+            {/* Lista de certificados */}
+            <div className="panel p-6">
+              <h2 className="mb-4 font-black text-slate-900">
+                Mis diplomas ({certificates?.length ?? 0})
+              </h2>
+
+              {loadingCerts && <p className="text-sm text-slate-400">Cargando...</p>}
+
+              {!loadingCerts && !certificates?.length && (
+                <p className="text-sm text-slate-400">
+                  Aún no has subido ningún diploma o certificado.
+                </p>
+              )}
+
+              {!loadingCerts && certificates && certificates.length > 0 && (
+                <div className="space-y-3">
+                  {certificates.map((cert) => (
+                    <div
+                      key={cert.id}
+                      className="flex items-start gap-4 rounded-xl border border-slate-100 p-4 hover:border-slate-200 transition-colors"
+                    >
+                      {/* Miniatura o icono PDF */}
+                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-center">
+                        {cert.fileType === 'image' ? (
+                          <img
+                            src={`http://localhost:3000${cert.fileUrl}`}
+                            alt={cert.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-3xl">📄</span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900 truncate">{cert.title}</p>
+                        {cert.description && (
+                          <p className="text-xs text-slate-500 mt-0.5">{cert.description}</p>
+                        )}
+                        <p className="text-xs text-slate-400 mt-1">
+                          {new Date(cert.createdAt).toLocaleDateString('es-ES', {
+                            day: '2-digit', month: 'short', year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 gap-2">
+                        <a
+                          href={`http://localhost:3000${cert.fileUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-bold text-brand-600 hover:text-brand-800 underline"
+                        >
+                          Ver
+                        </a>
+                        <button
+                          className="text-xs font-bold text-red-500 hover:text-red-700 underline"
+                          onClick={() => deleteCert.mutate(cert.id)}
+                          disabled={deleteCert.isPending}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useBarber, useAvailability } from '../hooks/useBarbers';
 import { useAuthStore } from '../store/auth.store';
 import { AppNavbar } from '../components/AppNavbar';
+import { useCertificates } from '../hooks/useCertificates';
 import type { Schedule } from '../api/barber.api';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -58,11 +59,17 @@ export function BarberProfile() {
     }
   }, [barber?.schedules]);
 
-  const { data: slots, isLoading: loadingSlots } = useAvailability(
+  const {
+    data: slots,
+    isLoading: loadingSlots,
+    isError: slotsError,
+  } = useAvailability(
     id!,
     selectedDate,
     selectedServiceId || undefined,
   );
+
+  const { data: certificates } = useCertificates(id ?? '');
 
   if (isLoading) {
     return (
@@ -114,6 +121,33 @@ export function BarberProfile() {
                     <span className="text-slate-600">{DAY_NAMES[s.dayOfWeek]}</span>
                     <span className="font-bold text-slate-900">{s.startTime} – {s.endTime}</span>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {certificates && certificates.length > 0 && (
+            <div className="panel p-6">
+              <p className="section-eyebrow">Formación y certificaciones</p>
+              <h2 className="mt-1 mb-5 text-xl font-black text-slate-900">Diplomas y estudios</h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {certificates.map((cert) => (
+                  <a
+                    key={cert.id}
+                    href={`http://localhost:3000${cert.fileUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-3xl border border-slate-200 bg-white p-4 transition hover:shadow-lg"
+                  >
+                    <div className="mb-3 flex h-24 items-center justify-center rounded-3xl bg-slate-100 text-4xl text-slate-400">
+                      {cert.fileType === 'image' ? '🖼️' : '📄'}
+                    </div>
+                    <p className="text-sm font-bold text-slate-900">{cert.title}</p>
+                    {cert.description && (
+                      <p className="mt-1 text-xs text-slate-500">{cert.description}</p>
+                    )}
+                  </a>
                 ))}
               </div>
             </div>
@@ -183,7 +217,14 @@ export function BarberProfile() {
                 3. Elige un horario disponible
               </label>
 
-              {loadingSlots && (
+              {/* Requiere haber seleccionado servicio primero */}
+              {!selectedServiceId && (
+                <p className="py-3 text-sm text-slate-400">
+                  Selecciona un servicio en el paso 1 para ver los horarios disponibles.
+                </p>
+              )}
+
+              {selectedServiceId && loadingSlots && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {[...Array(8)].map((_, i) => (
                     <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
@@ -191,15 +232,20 @@ export function BarberProfile() {
                 </div>
               )}
 
-              {!loadingSlots && slots?.length === 0 && (
-                <p className="py-4 text-sm text-slate-400">
-                  No hay horarios disponibles para esta fecha.
+              {selectedServiceId && !loadingSlots && slotsError && (
+                <p className="py-3 text-sm text-red-500">
+                  No se pudieron cargar los horarios. Intenta recargar la página.
                 </p>
               )}
 
-              {!loadingSlots && slots && slots.length > 0 && (
+              {selectedServiceId && !loadingSlots && !slotsError && slots?.length === 0 && (
+                <p className="py-3 text-sm text-slate-400">
+                  No hay horarios disponibles para esta fecha. Prueba con otro día.
+                </p>
+              )}
+
+              {selectedServiceId && !loadingSlots && !slotsError && slots && slots.length > 0 && (
                 <>
-                  {/* Aviso para usuarios autenticados que no son cliente */}
                   {accessToken && user?.role !== 'CLIENT' && (
                     <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm font-medium text-amber-800">
                       Las reservas son solo para clientes. Tu cuenta es de tipo {user?.role.toLowerCase()}.
@@ -235,10 +281,6 @@ export function BarberProfile() {
                     })}
                   </div>
                 </>
-              )}
-
-              {!selectedServiceId && (
-                <p className="mt-2 text-xs text-slate-400">Selecciona un servicio para ver los horarios</p>
               )}
             </div>
           </div>
