@@ -3,15 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { authApi, type LoginPayload, type RegisterPayload } from '../api/auth.api';
 import { useAuthStore } from '../store/auth.store';
 
-export function useLogin() {
+export function useLogin(redirectTo?: string) {
   const { login } = useAuthStore();
   const navigate = useNavigate();
 
   return useMutation({
     mutationFn: (data: LoginPayload) => authApi.login(data),
     onSuccess: ({ data }) => {
-      login(data.accessToken, data.user as Parameters<typeof login>[1]);
-      navigate('/dashboard/client');
+      const userData = data.user as Parameters<typeof login>[1];
+      login(data.accessToken, userData);
+      if (redirectTo) {
+        navigate(redirectTo);
+        return;
+      }
+      const destination =
+        userData.role === 'BARBER' ? '/dashboard/barber' :
+        userData.role === 'ADMIN'  ? '/dashboard/admin' :
+        '/dashboard/client';
+      navigate(destination);
     },
   });
 }

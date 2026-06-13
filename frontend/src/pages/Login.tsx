@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useLogin } from '../hooks/useAuth';
 
 export function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
-  const login = useLogin();
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect') ?? undefined;
+  const login = useLogin(redirect);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

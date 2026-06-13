@@ -7,6 +7,9 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './lib/swagger';
 import { errorHandler } from './middlewares/error.middleware';
 import authRoutes from './routes/auth.routes';
+import barberRoutes from './routes/barber.routes';
+import serviceRoutes from './routes/service.routes';
+import appointmentRoutes from './routes/appointment.routes';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -26,6 +29,9 @@ app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // Rutas
 app.use('/api/auth', authRoutes);
+app.use('/api/barbers', barberRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
