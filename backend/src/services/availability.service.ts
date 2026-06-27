@@ -1,21 +1,11 @@
 import { prisma } from '../lib/prisma';
+import { generateCandidateSlots, rangesOverlap } from '../lib/time';
 
 interface TimeSlot {
   startTime: string; // "09:00"
   endTime: string;   // "09:30"
   startAt: string;   // ISO datetime
   endAt: string;     // ISO datetime
-}
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, '0');
-  const m = (minutes % 60).toString().padStart(2, '0');
-  return `${h}:${m}`;
 }
 
 function buildDatetime(date: string, time: string): Date {
@@ -43,19 +33,19 @@ export async function getAvailableSlots(
     if (service) durationMin = service.durationMin;
   }
 
-  // Generar todos los slots posibles en el día
-  const startMinutes = timeToMinutes(schedule.startTime);
-  const endMinutes = timeToMinutes(schedule.endTime);
-  const possibleSlots: TimeSlot[] = [];
-
-  for (let m = startMinutes; m + durationMin <= endMinutes; m += 30) {
-    possibleSlots.push({
-      startTime: minutesToTime(m),
-      endTime: minutesToTime(m + durationMin),
-      startAt: buildDatetime(date, minutesToTime(m)).toISOString(),
-      endAt: buildDatetime(date, minutesToTime(m + durationMin)).toISOString(),
-    });
-  }
+  // Generar todos los slots posibles en el día (paso de 30 min, reservando
+  // la duración real del servicio para cada slot).
+  const possibleSlots: TimeSlot[] = generateCandidateSlots(
+    schedule.startTime,
+    schedule.endTime,
+    durationMin,
+    30,
+  ).map((s) => ({
+    startTime: s.startTime,
+    endTime: s.endTime,
+    startAt: buildDatetime(date, s.startTime).toISOString(),
+    endAt: buildDatetime(date, s.endTime).toISOString(),
+  }));
 
   // Obtener citas existentes del día (PENDING o CONFIRMED)
   const dayStart = new Date(`${date}T00:00:00`);
@@ -80,8 +70,8 @@ export async function getAvailableSlots(
     if (slotStart <= now) return false;
 
     // Descartar si colisiona con alguna cita existente
-    return !appointments.some(
-      (appt) => appt.startAt < slotEnd && appt.endAt > slotStart,
+    return !appointments.some((appt) =>
+      rangesOverlap(appt.startAt, appt.endAt, slotStart, slotEnd),
     );
   });
 }

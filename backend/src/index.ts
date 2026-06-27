@@ -9,6 +9,7 @@ import swaggerUi from 'swagger-ui-express';
 
 import { swaggerSpec } from './lib/swagger';
 import { errorHandler } from './middlewares/error.middleware';
+import { startReminderJob } from './jobs/reminder.job';
 import authRoutes from './routes/auth.routes';
 import barberRoutes from './routes/barber.routes';
 import serviceRoutes from './routes/service.routes';
@@ -66,4 +67,7 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
   console.log(`Documentación Swagger: http://localhost:${PORT}/api/docs`);
+
+  // Recordatorios automáticos de citas (barrido horario)
+  startReminderJob();
 });

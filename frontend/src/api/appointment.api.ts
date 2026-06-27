@@ -33,4 +33,7 @@ export const appointmentApi = {
 
   updateStatus: (id: string, status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED') =>
     api.patch<Appointment>(`/appointments/${id}/status`, { status }),
+
+  reschedule: (id: string, startAt: string) =>
+    api.patch<Appointment>(`/appointments/${id}/reschedule`, { startAt }),
 };

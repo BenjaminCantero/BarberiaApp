@@ -17,6 +17,12 @@ export const updateStatusSchema = z.object({
   }),
 });
 
+export const rescheduleAppointmentSchema = z.object({
+  body: z.object({
+    startAt: z.string().datetime('Fecha/hora inválida (ISO 8601 requerido)'),
+  }),
+});
+
 export const listAppointmentsQuerySchema = z.object({
   query: z.object({
     status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']).optional(),

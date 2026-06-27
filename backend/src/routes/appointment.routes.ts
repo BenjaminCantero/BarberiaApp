@@ -5,6 +5,7 @@ import { validate } from '../middlewares/validate.middleware';
 import {
   createAppointmentSchema,
   updateStatusSchema,
+  rescheduleAppointmentSchema,
   listAppointmentsQuerySchema,
 } from '../schemas/appointment.schema';
 
@@ -156,6 +157,48 @@ router.patch(
   authorize('CLIENT', 'BARBER', 'ADMIN'),
   validate(updateStatusSchema),
   appointmentController.updateStatus,
+);
+
+/**
+ * @swagger
+ * /appointments/{id}/reschedule:
+ *   patch:
+ *     summary: Reprogramar una cita a un nuevo horario
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Mueve una cita PENDING o CONFIRMED a un nuevo horario, validando turno
+ *       del barbero y colisiones. El cliente debe hacerlo con ≥2h de antelación.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [startAt]
+ *             properties:
+ *               startAt:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Cita reprogramada
+ *       400:
+ *         description: Horario inválido o fuera de turno
+ *       409:
+ *         description: Slot ya ocupado
+ */
+router.patch(
+  '/:id/reschedule',
+  authorize('CLIENT', 'BARBER', 'ADMIN'),
+  validate(rescheduleAppointmentSchema),
+  appointmentController.reschedule,
 );
 
 export default router;

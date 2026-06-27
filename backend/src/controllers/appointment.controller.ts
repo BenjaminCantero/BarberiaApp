@@ -44,3 +44,15 @@ export async function updateStatus(req: AuthRequest, res: Response, next: NextFu
     res.json(updated);
   } catch (err) { next(err); }
 }
+
+export async function reschedule(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const updated = await appointmentService.rescheduleAppointment(
+      req.params.id,
+      req.user!.userId,
+      req.user!.role,
+      req.body.startAt as string,
+    );
+    res.json(updated);
+  } catch (err) { next(err); }
+}
