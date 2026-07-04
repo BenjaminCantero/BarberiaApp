@@ -2,6 +2,7 @@ import { AppointmentStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/error.middleware';
 import * as notifications from './notification.service';
+import { getZonedDayOfWeek, getZonedHHMM } from '../lib/timezone';
 import type { CreateAppointmentInput } from '../schemas/appointment.schema';
 
 const APPOINTMENT_SELECT = {
@@ -41,16 +42,16 @@ export async function createAppointment(clientId: string, data: CreateAppointmen
 
   const endAt = new Date(startAt.getTime() + barberService.service.durationMin * 60_000);
 
-  // Verificar que el barbero esté en horario ese día
-  const dayOfWeek = startAt.getDay();
-  const timeStr = startAt.toTimeString().slice(0, 5); // "HH:MM"
+  // Verificar que el barbero esté en horario ese día (en la zona de la barbería)
+  const dayOfWeek = getZonedDayOfWeek(startAt);
+  const timeStr = getZonedHHMM(startAt); // "HH:MM"
 
   const schedule = await prisma.schedule.findFirst({
     where: { barberId, dayOfWeek, isActive: true },
   });
   if (!schedule) throw new AppError(400, 'El barbero no trabaja ese día');
 
-  const endTimeStr = endAt.toTimeString().slice(0, 5);
+  const endTimeStr = getZonedHHMM(endAt);
   if (timeStr < schedule.startTime || endTimeStr > schedule.endTime) {
     throw new AppError(400, 'El horario solicitado está fuera del turno del barbero');
   }
@@ -137,10 +138,10 @@ export async function rescheduleAppointment(
   if (startAt <= new Date()) throw new AppError(400, 'La cita debe ser en el futuro');
   const endAt = new Date(startAt.getTime() + service.durationMin * 60_000);
 
-  // Validar que el nuevo horario esté dentro del turno del barbero
-  const dayOfWeek = startAt.getDay();
-  const timeStr = startAt.toTimeString().slice(0, 5);
-  const endTimeStr = endAt.toTimeString().slice(0, 5);
+  // Validar que el nuevo horario esté dentro del turno del barbero (zona de la barbería)
+  const dayOfWeek = getZonedDayOfWeek(startAt);
+  const timeStr = getZonedHHMM(startAt);
+  const endTimeStr = getZonedHHMM(endAt);
   const schedule = await prisma.schedule.findFirst({
     where: { barberId: appointment.barberId, dayOfWeek, isActive: true },
   });

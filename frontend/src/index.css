@@ -7,32 +7,45 @@
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
-    background: #0f172a;
+    background: #f4f5f7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     min-width: 320px;
-    color: #0f172a;
+    color: #1e293b; /* slate-800: texto legible por defecto */
     background:
-      radial-gradient(circle at top left, rgba(212, 137, 31, 0.14), transparent 34rem),
-      linear-gradient(135deg, #0f172a 0%, #1f2937 42%, #f8fafc 42.1%, #f8fafc 100%);
+      radial-gradient(circle at 12% -10%, rgba(212, 137, 31, 0.10), transparent 30rem),
+      radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.12), transparent 26rem),
+      #f4f5f7;
   }
 
   ::selection {
     background: #e3a03a;
     color: #111827;
   }
+
+  /* Anillo de foco accesible y consistente en toda la app */
+  :focus-visible {
+    outline: 2px solid #d4891f;
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
   .app-shell {
-    @apply min-h-screen text-white;
+    @apply min-h-screen text-slate-800;
     background:
-      radial-gradient(circle at 6% 5%, rgba(212, 137, 31, 0.16), transparent 24rem),
-      radial-gradient(circle at 92% 8%, rgba(212, 137, 31, 0.08), transparent 18rem),
-      linear-gradient(180deg, #05060a 0%, #090b12 45%, #111827 100%);
+      radial-gradient(circle at 8% 0%, rgba(212, 137, 31, 0.08), transparent 28rem),
+      radial-gradient(circle at 96% 4%, rgba(148, 163, 184, 0.10), transparent 22rem),
+      linear-gradient(180deg, #f8fafc 0%, #f1f3f6 100%);
   }
 
+  /* Variante oscura para el hero de la landing (Home). El contenido interno
+     aporta su propio texto claro. */
   .app-shell-dark {
     @apply min-h-screen text-white;
     background:
@@ -43,78 +56,76 @@
   }
 
   .app-nav {
-    @apply sticky top-0 z-20 border-b border-white/10 bg-slate-950/90 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur md:px-8;
+    @apply sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3
+           border-b border-slate-200/80 bg-white/85 px-4 py-3
+           shadow-sm shadow-slate-900/5 backdrop-blur md:px-8;
   }
 
+  /* Variante oscura del nav (para secciones sobre fondo oscuro) */
   .app-nav-dark {
-    @apply border-white/10 bg-slate-950/90 text-white shadow-none;
-  }
-
-  .brand-mark {
-    @apply inline-flex items-center gap-3 text-lg font-black tracking-normal text-white md:text-xl;
-  }
-
-  .brand-icon {
-    @apply grid h-10 w-10 place-items-center rounded-lg bg-slate-800 text-sm font-black text-brand-200 shadow-lg shadow-brand-900/40;
+    @apply border-white/10 bg-slate-950/85 text-white shadow-none;
   }
 
   .page-container {
     @apply mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-12;
   }
 
+  /* ── Marca ──────────────────────────────────────────────────────────────── */
+  .brand-mark {
+    @apply inline-flex items-center gap-3 text-lg font-black tracking-normal text-slate-900 md:text-xl;
+  }
+
+  .brand-icon {
+    @apply grid h-10 w-10 place-items-center rounded-lg bg-slate-900 text-sm font-black text-brand-300 shadow-md shadow-slate-900/25;
+  }
+
+  /* ── Superficies ────────────────────────────────────────────────────────── */
   .surface {
-    @apply rounded-xl border border-slate-800/70 bg-slate-950/90 shadow-xl shadow-black/30 backdrop-blur;
+    @apply rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5;
   }
 
   .panel {
-    @apply rounded-xl border border-slate-800/70 bg-slate-900/95 shadow-sm shadow-black/20;
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5;
   }
 
+  /* ── Botones ────────────────────────────────────────────────────────────── */
+  /* Principal: sólido oscuro, alto contraste sobre fondos claros */
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-900/20 transition hover:-translate-y-0.5 hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5
+           text-sm font-bold text-white shadow-lg shadow-slate-900/15 transition
+           hover:-translate-y-0.5 hover:bg-slate-800
+           disabled:pointer-events-none disabled:opacity-50;
   }
 
+  /* Acento de marca: dorado con texto oscuro (look premium y legible) */
   .btn-brand {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-400 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-brand-900/20 transition hover:-translate-y-0.5 hover:bg-brand-300 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-500 px-5 py-2.5
+           text-sm font-bold text-slate-950 shadow-lg shadow-brand-900/20 transition
+           hover:-translate-y-0.5 hover:bg-brand-400
+           disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/15;
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300
+           bg-white px-5 py-2.5 text-sm font-bold text-slate-800 transition
+           hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50
+           disabled:pointer-events-none disabled:opacity-50;
   }
 
+  /* ── Formularios ────────────────────────────────────────────────────────── */
   .input-field {
-    @apply w-full rounded-lg border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-brand-400 focus:ring-4 focus:ring-brand-400/15;
+    @apply w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900
+           outline-none transition placeholder:text-slate-400
+           focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15;
   }
 
-  .section-eyebrow {
-    @apply text-xs font-black uppercase tracking-[0.18em] text-brand-200;
-  }
-
-  .chip {
-    @apply inline-flex items-center rounded-full border border-brand-400/20 bg-brand-400/10 px-3 py-1 text-xs font-bold text-brand-200;
-  }
-
-  .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-brand {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-900/20 transition hover:-translate-y-0.5 hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white/90 px-5 py-2.5 text-sm font-bold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white;
-  }
-
-  .input-field {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15;
-  }
-
+  /* ── Detalles ───────────────────────────────────────────────────────────── */
   .section-eyebrow {
     @apply text-xs font-black uppercase tracking-[0.18em] text-brand-700;
   }
 
   .chip {
-    @apply inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-800;
+    @apply inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-3 py-1
+           text-xs font-bold text-brand-800;
   }
 }

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { generateCandidateSlots, rangesOverlap } from '../lib/time';
+import { zonedWallTimeToUtc, civilDateDayOfWeek } from '../lib/timezone';
 
 interface TimeSlot {
   startTime: string; // "09:00"
@@ -8,8 +9,9 @@ interface TimeSlot {
   endAt: string;     // ISO datetime
 }
 
+// Interpreta la hora de pared en la zona de la barbería y devuelve el instante UTC.
 function buildDatetime(date: string, time: string): Date {
-  return new Date(`${date}T${time}:00`);
+  return zonedWallTimeToUtc(date, time);
 }
 
 export async function getAvailableSlots(
@@ -17,7 +19,7 @@ export async function getAvailableSlots(
   date: string,
   serviceId?: string,
 ): Promise<TimeSlot[]> {
-  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+  const dayOfWeek = civilDateDayOfWeek(date);
 
   const schedule = await prisma.schedule.findFirst({
     where: { barberId, dayOfWeek, isActive: true },
@@ -47,15 +49,16 @@ export async function getAvailableSlots(
     endAt: buildDatetime(date, s.endTime).toISOString(),
   }));
 
-  // Obtener citas existentes del día (PENDING o CONFIRMED)
-  const dayStart = new Date(`${date}T00:00:00`);
-  const dayEnd = new Date(`${date}T23:59:59`);
+  // Obtener citas existentes del día (PENDING o CONFIRMED). Los límites del día
+  // son la medianoche de la barbería, no la del servidor.
+  const dayStart = zonedWallTimeToUtc(date, '00:00');
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   const appointments = await prisma.appointment.findMany({
     where: {
       barberId,
       status: { in: ['PENDING', 'CONFIRMED'] },
-      startAt: { gte: dayStart, lte: dayEnd },
+      startAt: { gte: dayStart, lt: dayEnd },
     },
     select: { startAt: true, endAt: true },
   });
