@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/auth.store';
 import { useLogout } from '../hooks/useAuth';
 import {
   useAdminStats,
+  useAdminReports,
   useAdminUsers,
   useChangeUserRole,
   useChangeUserStatus,
@@ -15,7 +16,9 @@ import {
 } from '../hooks/useAdmin';
 import type { AdminUser } from '../api/admin.api';
 
-type Tab = 'overview' | 'users' | 'services' | 'appointments';
+type Tab = 'overview' | 'reports' | 'users' | 'services' | 'appointments';
+
+const money = (n: number) => `${n.toFixed(2)} €`;
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendiente',
@@ -56,6 +59,140 @@ function StatsOverview() {
           <p className={`mt-2 text-4xl font-black ${c.color}`}>{c.value}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+function firstOfMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function ReportsPanel() {
+  const [from, setFrom] = useState(firstOfMonth());
+  const [to, setTo] = useState(todayStr());
+  const { data, isLoading } = useAdminReports({ from, to });
+
+  const maxDay = data ? Math.max(1, ...data.revenueByDay.map((d) => d.revenue)) : 1;
+
+  const cards = data
+    ? [
+        { label: 'Ingresos', value: money(data.revenue), color: 'text-emerald-600' },
+        { label: 'Citas completadas', value: String(data.completed), color: 'text-blue-600' },
+        { label: 'Ticket promedio', value: money(data.averageTicket), color: 'text-slate-900' },
+        { label: 'Tasa de asistencia', value: `${data.completionRate}%`, color: 'text-brand-700' },
+        { label: 'Canceladas', value: String(data.cancelled), color: 'text-red-500' },
+      ]
+    : [];
+
+  return (
+    <div className="space-y-6">
+      {/* Rango de fechas */}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          Desde
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+            className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800"
+          />
+        </label>
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          Hasta
+          <input
+            type="date"
+            value={to}
+            min={from}
+            max={todayStr()}
+            onChange={(e) => setTo(e.target.value)}
+            className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800"
+          />
+        </label>
+      </div>
+
+      {isLoading || !data ? (
+        <p className="text-slate-400">Cargando reporte...</p>
+      ) : (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {cards.map((c) => (
+              <div key={c.label} className="panel p-5">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">{c.label}</p>
+                <p className={`mt-2 text-2xl font-black ${c.color}`}>{c.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Ingresos por día */}
+          <div className="panel p-5">
+            <h3 className="mb-4 font-black text-slate-900">Ingresos por día</h3>
+            {data.revenueByDay.length === 0 ? (
+              <p className="text-sm text-slate-400">No hay ingresos en este rango.</p>
+            ) : (
+              <div className="flex items-end gap-1 overflow-x-auto" style={{ height: 160 }}>
+                {data.revenueByDay.map((d) => (
+                  <div key={d.date} className="flex min-w-[24px] flex-1 flex-col items-center justify-end gap-1">
+                    <div
+                      className="w-full rounded-t bg-brand-500"
+                      style={{ height: `${(d.revenue / maxDay) * 120}px` }}
+                      title={`${d.date}: ${money(d.revenue)}`}
+                    />
+                    <span className="text-[10px] text-slate-400">{d.date.slice(8)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Top servicios y barberos */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="panel p-5">
+              <h3 className="mb-3 font-black text-slate-900">Servicios más vendidos</h3>
+              {data.topServices.length === 0 ? (
+                <p className="text-sm text-slate-400">Sin datos.</p>
+              ) : (
+                <table className="min-w-full text-sm">
+                  <tbody className="divide-y divide-slate-100">
+                    {data.topServices.map((s) => (
+                      <tr key={s.id}>
+                        <td className="py-2 font-semibold text-slate-800">{s.name}</td>
+                        <td className="py-2 text-right text-slate-500">{s.count} citas</td>
+                        <td className="py-2 text-right font-bold text-emerald-600">{money(s.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="panel p-5">
+              <h3 className="mb-3 font-black text-slate-900">Barberos por ingresos</h3>
+              {data.topBarbers.length === 0 ? (
+                <p className="text-sm text-slate-400">Sin datos.</p>
+              ) : (
+                <table className="min-w-full text-sm">
+                  <tbody className="divide-y divide-slate-100">
+                    {data.topBarbers.map((b) => (
+                      <tr key={b.id}>
+                        <td className="py-2 font-semibold text-slate-800">{b.name}</td>
+                        <td className="py-2 text-right text-slate-500">{b.count} citas</td>
+                        <td className="py-2 text-right font-bold text-emerald-600">{money(b.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -554,6 +691,7 @@ export function AdminDashboard() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Resumen' },
+    { id: 'reports', label: 'Reportes' },
     { id: 'users', label: 'Usuarios' },
     { id: 'services', label: 'Servicios' },
     { id: 'appointments', label: 'Citas' },
@@ -563,8 +701,8 @@ export function AdminDashboard() {
     <div className="app-shell">
       <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
         <Link to="/" className="brand-mark">
-          <span className="brand-icon">BB</span>
-          <span>BarberBook</span>
+          <span className="brand-icon">DS</span>
+          <span>Dragon Studio</span>
         </Link>
         <div className="flex items-center gap-3">
           <Link
@@ -612,6 +750,7 @@ export function AdminDashboard() {
 
         {/* Tab content */}
         {tab === 'overview' && <StatsOverview />}
+        {tab === 'reports' && <ReportsPanel />}
         {tab === 'users' && <UsersPanel />}
         {tab === 'services' && <ServicesPanel />}
         {tab === 'appointments' && <AppointmentsPanel />}

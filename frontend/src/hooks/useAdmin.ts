@@ -10,6 +10,14 @@ export function useAdminStats() {
   });
 }
 
+export function useAdminReports(params?: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ['admin', 'reports', params],
+    queryFn: () => adminApi.getReports(params).then((r) => r.data),
+    staleTime: 30_000,
+  });
+}
+
 export function useAdminUsers(page = 1) {
   return useQuery({
     queryKey: ['admin', 'users', page],

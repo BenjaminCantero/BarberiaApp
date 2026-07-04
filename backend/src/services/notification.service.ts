@@ -170,6 +170,42 @@ export async function notifyAppointmentRescheduled(appt: AppointmentForEmail): P
   );
 }
 
+export async function sendPasswordResetEmail(
+  to: string,
+  name: string,
+  resetUrl: string,
+): Promise<void> {
+  await send(
+    to,
+    `Restablecé tu contraseña de ${SHOP_NAME}`,
+    layout('Restablecer contraseña', `
+      <p>Hola <strong>${name}</strong>,</p>
+      <p>Recibimos una solicitud para restablecer tu contraseña. Hacé clic en el botón para elegir una nueva:</p>
+      <p style="text-align:center;margin:24px 0;">
+        <a href="${resetUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Restablecer contraseña</a>
+      </p>
+      <p style="font-size:13px;color:#6b7280;">Este enlace vence en 1 hora. Si no solicitaste el cambio, ignorá este correo: tu contraseña actual sigue siendo válida.</p>`),
+  );
+}
+
+export async function sendEmailVerificationEmail(
+  to: string,
+  name: string,
+  verifyUrl: string,
+): Promise<void> {
+  await send(
+    to,
+    `Confirmá tu email en ${SHOP_NAME}`,
+    layout('Confirmá tu cuenta', `
+      <p>Hola <strong>${name}</strong>,</p>
+      <p>¡Gracias por registrarte! Confirmá tu dirección de email para activar todas las funciones de tu cuenta:</p>
+      <p style="text-align:center;margin:24px 0;">
+        <a href="${verifyUrl}" style="background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Confirmar email</a>
+      </p>
+      <p style="font-size:13px;color:#6b7280;">Este enlace vence en 24 horas.</p>`),
+  );
+}
+
 /** Recordatorio enviado por el job programado (ver reminder.job.ts). */
 export async function notifyAppointmentReminder(appt: AppointmentForEmail): Promise<void> {
   await send(

@@ -3,6 +3,8 @@ import type { Appointment } from '../api/appointment.api';
 import { StatusBadge } from './StatusBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useUpdateAppointmentStatus, useRescheduleAppointment } from '../hooks/useAppointments';
+import { useCreateReview } from '../hooks/useReviews';
+import { StarRatingInput, StarRatingDisplay } from './StarRating';
 
 interface Props {
   appointment: Appointment;
@@ -26,11 +28,22 @@ function toLocalInput(iso: string): string {
 export function AppointmentCard({ appointment, viewAs }: Props) {
   const update = useUpdateAppointmentStatus();
   const reschedule = useRescheduleAppointment();
-  const { id, status, startAt, endAt, service, client, barber, notes } = appointment;
+  const createReview = useCreateReview();
+  const { id, status, startAt, endAt, service, client, barber, notes, review } = appointment;
 
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   const [newStart, setNewStart] = useState(() => toLocalInput(startAt));
+  const [reviewing, setReviewing] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+
+  const handleSubmitReview = () => {
+    createReview.mutate(
+      { appointmentId: id, rating, comment: comment.trim() || undefined },
+      { onSuccess: () => setReviewing(false) },
+    );
+  };
 
   const isPast = new Date(startAt) < new Date();
   const hoursUntil = (new Date(startAt).getTime() - Date.now()) / 3_600_000;
@@ -139,6 +152,56 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
               className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
             >
               Cancelar
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Reseña: solo el cliente, en citas completadas */}
+      {viewAs === 'CLIENT' && status === 'COMPLETED' && (
+        <div className="border-t border-slate-100 pt-3">
+          {review ? (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <span>Tu reseña:</span>
+              <StarRatingDisplay value={review.rating} />
+            </div>
+          ) : reviewing ? (
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div>
+                <p className="mb-1 text-xs font-bold text-slate-500">¿Cómo estuvo tu experiencia?</p>
+                <StarRatingInput value={rating} onChange={setRating} />
+              </div>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Contanos cómo fue (opcional)"
+                rows={2}
+                maxLength={1000}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={createReview.isPending}
+                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-700 disabled:opacity-50"
+                >
+                  Enviar reseña
+                </button>
+                <button
+                  onClick={() => setReviewing(false)}
+                  disabled={createReview.isPending}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-white disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setReviewing(true)}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
+            >
+              ★ Dejar reseña
             </button>
           )}
         </div>

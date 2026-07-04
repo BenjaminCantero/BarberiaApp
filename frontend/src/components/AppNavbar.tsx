@@ -27,8 +27,8 @@ export function AppNavbar({ dark, back }: Props) {
         </Link>
       ) : (
         <Link to="/" className={`brand-mark${dark ? ' text-white' : ''}`}>
-          <span className="brand-icon">BB</span>
-          <span>BarberBook</span>
+          <span className="brand-icon">DS</span>
+          <span>Dragon Studio</span>
         </Link>
       )}
 

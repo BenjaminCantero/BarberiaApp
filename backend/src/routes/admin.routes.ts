@@ -6,6 +6,7 @@ import {
   changeStatusSchema,
   createBarberSchema,
   adminAppointmentQuerySchema,
+  reportsQuerySchema,
 } from '../schemas/admin.schema';
 import { createServiceSchema, updateServiceSchema } from '../schemas/service.schema';
 import * as adminController from '../controllers/admin.controller';
@@ -17,6 +18,9 @@ router.use(authenticate, authorize('ADMIN'));
 
 // Estadísticas
 router.get('/stats', adminController.getStats);
+
+// Reportes de negocio (ingresos, ocupación, top servicios/barberos)
+router.get('/reports', validate(reportsQuerySchema), adminController.getReports);
 
 // Usuarios
 router.get('/users', adminController.listUsers);

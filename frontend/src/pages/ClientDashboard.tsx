@@ -33,8 +33,8 @@ export function ClientDashboard() {
     <div className="app-shell">
       <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
         <Link to="/" className="brand-mark">
-          <span className="brand-icon">BB</span>
-          <span>BarberBook</span>
+          <span className="brand-icon">DS</span>
+          <span>Dragon Studio</span>
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-slate-600">Hola, {user?.name ?? '...'}</span>

@@ -12,6 +12,16 @@ export async function getStats(_req: AuthRequest, res: Response, next: NextFunct
   }
 }
 
+export async function getReports(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    res.json(await adminService.getReports(from, to));
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function listUsers(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const page = Number(req.query.page) || 1;

@@ -32,6 +32,13 @@ export const adminAppointmentQuerySchema = z.object({
   }),
 });
 
+export const reportsQuerySchema = z.object({
+  query: z.object({
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }),
+});
+
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>['body'];
 export type ChangeStatusInput = z.infer<typeof changeStatusSchema>['body'];
 export type CreateBarberInput = z.infer<typeof createBarberSchema>['body'];

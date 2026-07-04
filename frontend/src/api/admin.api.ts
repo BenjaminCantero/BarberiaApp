@@ -34,6 +34,26 @@ export interface PaginatedAppointments {
   pages: number;
 }
 
+export interface ReportRow {
+  id: string;
+  name: string;
+  count: number;
+  revenue: number;
+}
+
+export interface AdminReports {
+  range: { from: string; to: string };
+  revenue: number;
+  completed: number;
+  cancelled: number;
+  total: number;
+  completionRate: number;
+  averageTicket: number;
+  topServices: ReportRow[];
+  topBarbers: ReportRow[];
+  revenueByDay: Array<{ date: string; revenue: number }>;
+}
+
 export interface AdminService {
   id: string;
   name: string;
@@ -45,6 +65,9 @@ export interface AdminService {
 
 export const adminApi = {
   getStats: () => api.get<AdminStats>('/admin/stats'),
+
+  getReports: (params?: { from?: string; to?: string }) =>
+    api.get<AdminReports>('/admin/reports', { params }),
 
   listUsers: (page = 1, limit = 20) =>
     api.get<PaginatedUsers>('/admin/users', { params: { page, limit } }),

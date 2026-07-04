@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom';
 
 const FEATURES = [
-  { label: 'Barberos verificados', value: '12+', desc: 'Perfiles, servicios y disponibilidad al día.' },
-  { label: 'Reserva rápida', value: '2 min', desc: 'Elige servicio, fecha y horario sin llamadas.' },
-  { label: 'Control total', value: '24/7', desc: 'Gestiona tus citas desde tu panel personal.' },
+  { label: 'Barberos expertos', value: '12+', desc: 'Especialistas en cortes, barba y estilo clásico.' },
+  { label: 'Reserva rápida', value: '2 min', desc: 'Agendas tu hora sin esperas ni llamadas.' },
+  { label: 'Estilo premium', value: '100%', desc: 'Atención personalizada en un ambiente exclusivo.' },
 ];
 
 const STEPS = [
-  { step: '01', title: 'Explora estilos', desc: 'Compara barberos por especialidad, servicios y horarios disponibles.' },
-  { step: '02', title: 'Agenda tu hora', desc: 'Selecciona el servicio, revisa el precio y confirma el horario que te acomode.' },
-  { step: '03', title: 'Llega sin espera', desc: 'Tu cita queda registrada y puedes seguir el estado desde tu cuenta.' },
+  { step: '01', title: 'Elige tu barbero', desc: 'Revisa perfiles con estilos y especialidades claras.' },
+  { step: '02', title: 'Confirma tu horario', desc: 'Selecciona servicio, precio y fecha en segundos.' },
+  { step: '03', title: 'Disfruta el corte', desc: 'Llega a Dragon Studio y deja que tu estilo hable por ti.' },
 ];
 
 export function Home() {
@@ -17,8 +17,8 @@ export function Home() {
     <div className="app-shell-dark">
       <nav className="app-nav app-nav-dark flex items-center justify-between">
         <Link to="/" className="brand-mark text-white">
-          <span className="brand-icon">BB</span>
-          <span>BarberBook</span>
+          <span className="brand-icon">DS</span>
+          <span>Dragon Studio</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link to="/barbers" className="hidden text-sm font-semibold text-slate-200 transition hover:text-white sm:inline">
@@ -36,19 +36,19 @@ export function Home() {
       <main>
         <section className="mx-auto grid min-h-[calc(100vh-72px)] max-w-7xl items-center gap-10 px-4 py-12 md:grid-cols-[1.05fr_0.95fr] md:px-8 lg:py-16">
           <div className="max-w-3xl">
-            <p className="section-eyebrow text-brand-300">Reserva premium para barberías</p>
+            <p className="section-eyebrow text-brand-300">Dragon Studio</p>
             <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
-              BarberBook
+              La barbería que lleva tu estilo al siguiente nivel.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">
-              Agenda tu corte con barberos disponibles, precios claros y confirmación online. Una experiencia rápida, pulida y sin esperas.
+              Reserva tu corte, barba o diseño de cejas con barberos expertos y atención premium en un solo lugar.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/barbers" className="btn-brand px-7">
                 Ver barberos
               </Link>
               <Link to="/register" className="btn-secondary border-white/20 bg-white/10 px-7 text-white hover:bg-white/20">
-                Crear cuenta
+                Reservar ahora
               </Link>
             </div>
           </div>
@@ -78,7 +78,7 @@ export function Home() {
               <p className="section-eyebrow">Cómo funciona</p>
               <h2 className="mt-3 text-3xl font-black tracking-normal sm:text-4xl">De la idea al sillón en tres pasos.</h2>
               <p className="mt-4 text-slate-600">
-                BarberBook mantiene la reserva simple para clientes y ordenada para cada barbero.
+                Dragon Studio mantiene la reserva simple para clientes y ordenada para cada barbero.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">

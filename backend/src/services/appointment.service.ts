@@ -19,6 +19,7 @@ const APPOINTMENT_SELECT = {
     },
   },
   service: { select: { id: true, name: true, durationMin: true, price: true } },
+  review: { select: { id: true, rating: true } },
 };
 
 export async function createAppointment(clientId: string, data: CreateAppointmentInput) {

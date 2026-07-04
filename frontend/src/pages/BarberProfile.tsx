@@ -4,6 +4,8 @@ import { useBarber, useAvailability } from '../hooks/useBarbers';
 import { useAuthStore } from '../store/auth.store';
 import { AppNavbar } from '../components/AppNavbar';
 import { useCertificates } from '../hooks/useCertificates';
+import { useBarberReviews } from '../hooks/useReviews';
+import { StarRatingDisplay } from '../components/StarRating';
 import type { Schedule } from '../api/barber.api';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -70,6 +72,7 @@ export function BarberProfile() {
   );
 
   const { data: certificates } = useCertificates(id ?? '');
+  const { data: reviewsData } = useBarberReviews(id ?? '');
 
   if (isLoading) {
     return (
@@ -108,6 +111,11 @@ export function BarberProfile() {
               </div>
             )}
             <h1 className="text-2xl font-black text-slate-950">{barber.user.name}</h1>
+            {barber.rating && barber.rating.count > 0 && (
+              <div className="mt-2 flex justify-center">
+                <StarRatingDisplay value={barber.rating.average} count={barber.rating.count} size="md" />
+              </div>
+            )}
             {barber.user.phone && <p className="mt-1 text-sm text-slate-500">{barber.user.phone}</p>}
             {barber.bio && <p className="mt-3 text-sm leading-6 text-slate-600">{barber.bio}</p>}
           </div>
@@ -170,6 +178,29 @@ export function BarberProfile() {
               ))}
             </div>
           </div>
+
+          {reviewsData && reviewsData.reviews.length > 0 && (
+            <div className="panel p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-black text-slate-900">Reseñas</h2>
+                <StarRatingDisplay value={reviewsData.summary.average} count={reviewsData.summary.count} />
+              </div>
+              <div className="space-y-4">
+                {reviewsData.reviews.map((r) => (
+                  <div key={r.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-slate-800">{r.client.name}</p>
+                      <StarRatingDisplay value={r.rating} />
+                    </div>
+                    {r.comment && <p className="mt-1 text-sm leading-6 text-slate-600">{r.comment}</p>}
+                    <p className="mt-1 text-xs text-slate-400">
+                      {new Date(r.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-2 space-y-6">

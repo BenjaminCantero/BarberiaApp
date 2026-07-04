@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+  import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { useLogout } from '../hooks/useAuth';
@@ -80,8 +80,8 @@ export function BarberDashboard() {
     <div className="app-shell">
       <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
         <Link to="/" className="brand-mark">
-          <span className="brand-icon">BB</span>
-          <span>BarberBook</span>
+          <span className="brand-icon">DS</span>
+          <span>Dragon Studio</span>
         </Link>
         <div className="flex items-center gap-3">
           {myBarber && (

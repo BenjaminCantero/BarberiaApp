@@ -26,36 +26,36 @@
 
 @layer components {
   .app-shell {
-    @apply min-h-screen bg-slate-50 text-slate-900;
+    @apply min-h-screen text-white;
     background:
-      radial-gradient(circle at 8% 0%, rgba(212, 137, 31, 0.13), transparent 22rem),
-      radial-gradient(circle at 96% 12%, rgba(20, 184, 166, 0.09), transparent 20rem),
-      linear-gradient(180deg, #fffaf2 0%, #f8fafc 38%, #eef2f7 100%);
+      radial-gradient(circle at 6% 5%, rgba(212, 137, 31, 0.16), transparent 24rem),
+      radial-gradient(circle at 92% 8%, rgba(212, 137, 31, 0.08), transparent 18rem),
+      linear-gradient(180deg, #05060a 0%, #090b12 45%, #111827 100%);
   }
 
   .app-shell-dark {
     @apply min-h-screen text-white;
     background:
-      linear-gradient(115deg, rgba(15, 23, 42, 0.9), rgba(17, 24, 39, 0.72)),
+      linear-gradient(115deg, rgba(6, 8, 16, 0.95), rgba(14, 16, 27, 0.84)),
       url("https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1800&q=80");
     background-position: center;
     background-size: cover;
   }
 
   .app-nav {
-    @apply sticky top-0 z-20 border-b border-white/70 bg-white/80 px-4 py-3 shadow-sm shadow-slate-950/5 backdrop-blur md:px-8;
+    @apply sticky top-0 z-20 border-b border-white/10 bg-slate-950/90 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur md:px-8;
   }
 
   .app-nav-dark {
-    @apply border-white/10 bg-slate-950/50 text-white shadow-none;
+    @apply border-white/10 bg-slate-950/90 text-white shadow-none;
   }
 
   .brand-mark {
-    @apply inline-flex items-center gap-3 text-lg font-black tracking-normal text-slate-950 md:text-xl;
+    @apply inline-flex items-center gap-3 text-lg font-black tracking-normal text-white md:text-xl;
   }
 
   .brand-icon {
-    @apply grid h-10 w-10 place-items-center rounded-lg bg-slate-950 text-sm font-black text-brand-300 shadow-lg shadow-brand-900/20;
+    @apply grid h-10 w-10 place-items-center rounded-lg bg-slate-800 text-sm font-black text-brand-200 shadow-lg shadow-brand-900/40;
   }
 
   .page-container {
@@ -63,11 +63,35 @@
   }
 
   .surface {
-    @apply rounded-lg border border-white/80 bg-white/90 shadow-xl shadow-slate-950/10 backdrop-blur;
+    @apply rounded-xl border border-slate-800/70 bg-slate-950/90 shadow-xl shadow-black/30 backdrop-blur;
   }
 
   .panel {
-    @apply rounded-lg border border-slate-200/80 bg-white/95 shadow-sm shadow-slate-950/5;
+    @apply rounded-xl border border-slate-800/70 bg-slate-900/95 shadow-sm shadow-black/20;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-900/20 transition hover:-translate-y-0.5 hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-brand {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-400 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-brand-900/20 transition hover:-translate-y-0.5 hover:bg-brand-300 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/15;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-brand-400 focus:ring-4 focus:ring-brand-400/15;
+  }
+
+  .section-eyebrow {
+    @apply text-xs font-black uppercase tracking-[0.18em] text-brand-200;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full border border-brand-400/20 bg-brand-400/10 px-3 py-1 text-xs font-bold text-brand-200;
   }
 
   .btn-primary {

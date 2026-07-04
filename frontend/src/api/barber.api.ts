@@ -19,6 +19,7 @@ export interface Barber {
   user: { name: string; email: string; phone?: string; avatarUrl?: string };
   services: BarberService[];
   schedules?: Schedule[];
+  rating?: { average: number; count: number };
 }
 
 export interface TimeSlot {

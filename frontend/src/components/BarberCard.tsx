@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Barber } from '../api/barber.api';
+import { StarRatingDisplay } from './StarRating';
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -31,6 +32,11 @@ export function BarberCard({ barber }: Props) {
         )}
         <div className="min-w-0">
           <h3 className="truncate text-lg font-black text-slate-950">{barber.user.name}</h3>
+          {barber.rating && barber.rating.count > 0 ? (
+            <StarRatingDisplay value={barber.rating.average} count={barber.rating.count} />
+          ) : (
+            <p className="text-xs text-slate-400">Sin reseñas aún</p>
+          )}
           {barber.user.phone && (
             <p className="text-sm text-slate-500">{barber.user.phone}</p>
           )}

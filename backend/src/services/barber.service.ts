@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/error.middleware';
 import type { UpdateBarberInput, SetScheduleInput } from '../schemas/barber.schema';
 import { getAvailableSlots } from './availability.service';
+import { getRatingSummary, getRatingSummaries } from './review.service';
 
 export async function getMyBarber(userId: string) {
   const barber = await prisma.barber.findUnique({
@@ -20,7 +21,7 @@ export async function getMyBarber(userId: string) {
 }
 
 export async function listBarbers() {
-  return prisma.barber.findMany({
+  const barbers = await prisma.barber.findMany({
     where: { isActive: true },
     include: {
       user: { select: { name: true, email: true, phone: true, avatarUrl: true } },
@@ -31,6 +32,9 @@ export async function listBarbers() {
     },
     orderBy: { user: { name: 'asc' } },
   });
+
+  const ratings = await getRatingSummaries(barbers.map((b) => b.id));
+  return barbers.map((b) => ({ ...b, rating: ratings.get(b.id) ?? { average: 0, count: 0 } }));
 }
 
 export async function getBarberById(id: string) {
@@ -46,7 +50,8 @@ export async function getBarberById(id: string) {
     },
   });
   if (!barber) throw new AppError(404, 'Barbero no encontrado');
-  return barber;
+  const rating = await getRatingSummary(barber.id);
+  return { ...barber, rating };
 }
 
 export async function updateBarber(id: string, requesterId: string, requesterRole: string, data: UpdateBarberInput) {

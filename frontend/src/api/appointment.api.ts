@@ -12,6 +12,7 @@ export interface Appointment {
   client: { id: string; name: string; email: string; phone?: string };
   barber: { id: string; user: { name: string; email: string; phone?: string } };
   service: { id: string; name: string; durationMin: number; price: string };
+  review?: { id: string; rating: number } | null;
 }
 
 export interface CreateAppointmentPayload {

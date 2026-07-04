@@ -32,11 +32,11 @@ export function Register() {
       <div className="grid w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl shadow-slate-950/15 md:grid-cols-[1.05fr_0.95fr]">
         <section className="p-6 sm:p-8 md:p-10">
           <Link to="/" className="brand-mark mb-8">
-            <span className="brand-icon">BB</span>
-            <span>BarberBook</span>
+            <span className="brand-icon">DS</span>
+            <span>Dragon Studio</span>
           </Link>
           <h1 className="text-3xl font-black text-slate-950">Crear cuenta</h1>
-          <p className="mb-8 mt-2 text-slate-500">Únete a BarberBook y reserva tu cita</p>
+          <p className="mb-8 mt-2 text-slate-500">Únete a Dragon Studio y reserva tu cita</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {field('Nombre completo', 'name', 'text', 'Juan García')}
@@ -71,7 +71,7 @@ export function Register() {
         <aside className="hidden bg-slate-950 p-8 text-white md:flex md:flex-col md:justify-between">
           <div className="rounded-lg border border-white/10 bg-white/10 p-5">
             <p className="text-sm font-bold text-brand-300">Reserva clara</p>
-            <p className="mt-2 text-3xl font-black">Servicio, precio y hora antes de confirmar.</p>
+            <p className="mt-2 text-3xl font-black">Servicio, precio y hora antes de confirmar en Dragon Studio.</p>
           </div>
           <div>
             <p className="section-eyebrow text-brand-300">Empieza hoy</p>

@@ -55,12 +55,49 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
   }
 }
 
+export async function forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await authService.forgotPassword(req.body.email);
+    // Respuesta genérica para no revelar si el email está registrado.
+    res.json({ message: 'Si el email existe, te enviamos un enlace para restablecer tu contraseña.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await authService.resetPassword(req.body.token, req.body.password);
+    res.json({ message: 'Contraseña actualizada. Ya podés iniciar sesión.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await authService.verifyEmail(req.body.token);
+    res.json({ message: 'Email verificado correctamente.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resendVerification(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await authService.resendVerification(req.body.email);
+    res.json({ message: 'Si el email existe y no está verificado, te enviamos un nuevo enlace.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function me(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { prisma } = await import('../lib/prisma');
     const user = await prisma.user.findUnique({
       where: { id: req.user!.userId },
-      select: { id: true, name: true, email: true, role: true, phone: true, avatarUrl: true },
+      select: { id: true, name: true, email: true, role: true, phone: true, avatarUrl: true, emailVerified: true },
     });
     if (!user) {
       res.status(404).json({ message: 'Usuario no encontrado' });

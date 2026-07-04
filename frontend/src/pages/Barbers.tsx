@@ -19,10 +19,10 @@ export function Barbers() {
       <main className="page-container">
         <div className="mb-8 grid gap-6 rounded-lg bg-slate-950 px-5 py-8 text-white shadow-2xl shadow-slate-950/20 md:grid-cols-[1fr_21rem] md:p-8">
           <div>
-            <p className="section-eyebrow text-brand-300">Catálogo BarberBook</p>
-            <h1 className="mt-3 text-4xl font-black tracking-normal sm:text-5xl">Encuentra tu próximo corte.</h1>
+            <p className="section-eyebrow text-brand-300">Nuestro equipo</p>
+            <h1 className="mt-3 text-4xl font-black tracking-normal sm:text-5xl">Encuentra a tu barbero de confianza.</h1>
             <p className="mt-3 max-w-2xl text-slate-300">
-              Revisa perfiles, servicios y disponibilidad para reservar con el barbero que mejor calce con tu estilo.
+              Revisa perfiles, servicios y horarios disponibles para reservar en Dragon Studio.
             </p>
           </div>
           <div className="grid content-end gap-2 text-sm text-slate-300">

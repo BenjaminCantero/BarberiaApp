@@ -8,6 +8,9 @@ Sistema de reserva de citas para barberías. Monorepo con **backend** (Express +
 - Roles: cliente, barbero y administrador
 - Confirmación, cancelación y **reprogramación** de citas con reglas de negocio
 - **Notificaciones por email** (reserva, confirmación, cancelación, reprogramación) y **recordatorios automáticos** 24h antes
+- **Reseñas y calificaciones** de barberos (promedio, listado público, una reseña por cita completada)
+- **Reportes de negocio** para el dueño: ingresos, ocupación, ticket promedio, top servicios y barberos por rango de fechas
+- **Recuperación de contraseña** y **verificación de email** por enlace de un solo uso
 - Gestión de servicios, horarios semanales y certificados de barberos
 - Panel de administración con estadísticas
 - Autenticación JWT con refresh tokens en cookie httpOnly
