@@ -9,8 +9,9 @@ import nodemailer, { type Transporter } from 'nodemailer';
  * variables de entorno.
  */
 
-const SHOP_NAME = process.env.SHOP_NAME ?? 'Barbería';
 import { SHOP_TIMEZONE } from '../lib/timezone';
+
+const SHOP_NAME = process.env.SHOP_NAME ?? 'Barbería';
 const FROM = process.env.SMTP_FROM ?? 'no-reply@barberia.app';
 
 let transporter: Transporter | null = null;
@@ -32,6 +33,21 @@ function getTransporter(): Transporter | null {
   return transporter;
 }
 
+/**
+ * Envía varios correos de forma independiente: si uno falla (p. ej. el del
+ * cliente rebota) los demás igual salen. Lanza al final si alguno falló, para
+ * que quien llama lo registre.
+ */
+async function sendAll(messages: Array<[to: string, subject: string, html: string]>): Promise<void> {
+  const results = await Promise.allSettled(
+    messages.filter(([to]) => Boolean(to)).map(([to, subject, html]) => send(to, subject, html)),
+  );
+  const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+  if (failed.length) {
+    throw new AggregateError(failed.map((f) => f.reason), `${failed.length} de ${results.length} correos fallaron`);
+  }
+}
+
 async function send(to: string, subject: string, html: string): Promise<void> {
   const tx = getTransporter();
   if (!tx) {
@@ -44,7 +60,7 @@ async function send(to: string, subject: string, html: string): Promise<void> {
 
 function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('es-AR', {
+  return new Intl.DateTimeFormat('es-CL', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -85,32 +101,34 @@ function layout(title: string, body: string): string {
 export async function notifyAppointmentCreated(appt: AppointmentForEmail): Promise<void> {
   appt = safeAppointment(appt);
   const when = formatDate(appt.startAt);
-  // Al cliente
-  await send(
-    appt.client.email,
-    `Tu reserva en ${SHOP_NAME} está pendiente de confirmación`,
-    layout('Reserva recibida', `
-      <p>Hola <strong>${appt.client.name}</strong>,</p>
-      <p>Recibimos tu solicitud de cita:</p>
-      <ul>
-        <li><strong>Servicio:</strong> ${appt.service.name}</li>
-        <li><strong>Barbero:</strong> ${appt.barber.user.name}</li>
-        <li><strong>Fecha y hora:</strong> ${when}</li>
-      </ul>
-      <p>Te avisaremos cuando el barbero la confirme.</p>`),
-  );
-  // Al barbero
-  await send(
-    appt.barber.user.email,
-    `Nueva reserva de ${appt.client.name}`,
-    layout('Nueva reserva', `
-      <p>Tenés una nueva solicitud de cita:</p>
-      <ul>
-        <li><strong>Cliente:</strong> ${appt.client.name}</li>
-        <li><strong>Servicio:</strong> ${appt.service.name}</li>
-        <li><strong>Fecha y hora:</strong> ${when}</li>
-      </ul>`),
-  );
+  await sendAll([
+    // Al cliente
+    [
+      appt.client.email,
+      `Tu reserva en ${SHOP_NAME} está pendiente de confirmación`,
+      layout('Reserva recibida', `
+        <p>Hola <strong>${appt.client.name}</strong>,</p>
+        <p>Recibimos tu solicitud de cita:</p>
+        <ul>
+          <li><strong>Servicio:</strong> ${appt.service.name}</li>
+          <li><strong>Barbero:</strong> ${appt.barber.user.name}</li>
+          <li><strong>Fecha y hora:</strong> ${when}</li>
+        </ul>
+        <p>Te avisaremos cuando el barbero la confirme.</p>`),
+    ],
+    // Al barbero
+    [
+      appt.barber.user.email,
+      `Nueva reserva de ${appt.client.name}`,
+      layout('Nueva reserva', `
+        <p>Tienes una nueva solicitud de cita:</p>
+        <ul>
+          <li><strong>Cliente:</strong> ${appt.client.name}</li>
+          <li><strong>Servicio:</strong> ${appt.service.name}</li>
+          <li><strong>Fecha y hora:</strong> ${when}</li>
+        </ul>`),
+    ],
+  ]);
 }
 
 export async function notifyAppointmentConfirmed(appt: AppointmentForEmail): Promise<void> {
@@ -156,7 +174,7 @@ export async function notifyAppointmentCancelled(
       layout('Cita cancelada', `
         <p>Hola <strong>${appt.client.name}</strong>,</p>
         <p>Lamentamos informarte que tu cita del <strong>${when}</strong> fue cancelada.</p>
-        <p>Podés reservar un nuevo horario cuando quieras.</p>`),
+        <p>Puedes reservar un nuevo horario cuando quieras.</p>`),
     );
   }
 }
@@ -164,24 +182,26 @@ export async function notifyAppointmentCancelled(
 export async function notifyAppointmentRescheduled(appt: AppointmentForEmail): Promise<void> {
   appt = safeAppointment(appt);
   const when = formatDate(appt.startAt);
-  await send(
-    appt.client.email,
-    `Tu cita en ${SHOP_NAME} fue reprogramada`,
-    layout('Cita reprogramada', `
-      <p>Hola <strong>${appt.client.name}</strong>,</p>
-      <p>Tu cita fue movida a un nuevo horario:</p>
-      <ul>
-        <li><strong>Servicio:</strong> ${appt.service.name}</li>
-        <li><strong>Barbero:</strong> ${appt.barber.user.name}</li>
-        <li><strong>Nueva fecha y hora:</strong> ${when}</li>
-      </ul>`),
-  );
-  await send(
-    appt.barber.user.email,
-    `${appt.client.name} reprogramó su cita`,
-    layout('Cita reprogramada', `
-      <p>La cita de <strong>${appt.client.name}</strong> (${appt.service.name}) se movió a <strong>${when}</strong>.</p>`),
-  );
+  await sendAll([
+    [
+      appt.client.email,
+      `Tu cita en ${SHOP_NAME} fue reprogramada`,
+      layout('Cita reprogramada', `
+        <p>Hola <strong>${appt.client.name}</strong>,</p>
+        <p>Tu cita fue movida a un nuevo horario:</p>
+        <ul>
+          <li><strong>Servicio:</strong> ${appt.service.name}</li>
+          <li><strong>Barbero:</strong> ${appt.barber.user.name}</li>
+          <li><strong>Nueva fecha y hora:</strong> ${when}</li>
+        </ul>`),
+    ],
+    [
+      appt.barber.user.email,
+      `${appt.client.name} reprogramó su cita`,
+      layout('Cita reprogramada', `
+        <p>La cita de <strong>${appt.client.name}</strong> (${appt.service.name}) se movió a <strong>${when}</strong>.</p>`),
+    ],
+  ]);
 }
 
 export async function sendPasswordResetEmail(
@@ -191,14 +211,14 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   await send(
     to,
-    `Restablecé tu contraseña de ${SHOP_NAME}`,
+    `Restablece tu contraseña de ${SHOP_NAME}`,
     layout('Restablecer contraseña', `
       <p>Hola <strong>${name}</strong>,</p>
-      <p>Recibimos una solicitud para restablecer tu contraseña. Hacé clic en el botón para elegir una nueva:</p>
+      <p>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón para elegir una nueva:</p>
       <p style="text-align:center;margin:24px 0;">
         <a href="${resetUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Restablecer contraseña</a>
       </p>
-      <p style="font-size:13px;color:#6b7280;">Este enlace vence en 1 hora. Si no solicitaste el cambio, ignorá este correo: tu contraseña actual sigue siendo válida.</p>`),
+      <p style="font-size:13px;color:#6b7280;">Este enlace vence en 1 hora. Si no solicitaste el cambio, ignora este correo: tu contraseña actual sigue siendo válida.</p>`),
   );
 }
 
@@ -209,10 +229,10 @@ export async function sendEmailVerificationEmail(
 ): Promise<void> {
   await send(
     to,
-    `Confirmá tu email en ${SHOP_NAME}`,
-    layout('Confirmá tu cuenta', `
+    `Confirma tu email en ${SHOP_NAME}`,
+    layout('Confirma tu cuenta', `
       <p>Hola <strong>${name}</strong>,</p>
-      <p>¡Gracias por registrarte! Confirmá tu dirección de email para activar todas las funciones de tu cuenta:</p>
+      <p>¡Gracias por registrarte! Confirma tu dirección de email para activar todas las funciones de tu cuenta:</p>
       <p style="text-align:center;margin:24px 0;">
         <a href="${verifyUrl}" style="background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Confirmar email</a>
       </p>
