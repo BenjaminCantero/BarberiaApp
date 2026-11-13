@@ -49,6 +49,10 @@ export interface AdminReports {
   total: number;
   completionRate: number;
   averageTicket: number;
+  previousRevenue: number;
+  revenueChange: number;
+  newClients: number;
+  status: { pending: number; confirmed: number; completed: number; cancelled: number };
   topServices: ReportRow[];
   topBarbers: ReportRow[];
   revenueByDay: Array<{ date: string; revenue: number }>;
@@ -78,8 +82,13 @@ export const adminApi = {
   changeStatus: (userId: string, isActive: boolean) =>
     api.patch<AdminUser>(`/admin/users/${userId}/status`, { isActive }),
 
-  createBarber: (userId: string, bio?: string) =>
-    api.post('/admin/barbers', { userId, bio }),
+  createBarber: (data: { userId: string; bio?: string } | {
+    name: string; email: string; phone?: string; password: string; bio?: string;
+  }) => api.post('/admin/barbers', data),
+
+  updateBarberAccount: (barberId: string, data: {
+    name?: string; email?: string; phone?: string | null; password?: string;
+  }) => api.patch<AdminUser>(`/admin/barbers/${barberId}/account`, data),
 
   listAppointments: (params?: {
     status?: string;

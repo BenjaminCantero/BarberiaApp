@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { useBarber, useAvailability } from '../hooks/useBarbers';
+import { useBarber, useAvailability, useMyBarber } from '../hooks/useBarbers';
 import { AppNavbar } from '../components/AppNavbar';
 import { useCertificates } from '../hooks/useCertificates';
 import { useBarberPortfolio } from '../hooks/usePortfolio';
@@ -11,11 +11,16 @@ import { DAY_NAMES, WEEK_ORDER, formatRanges, nextWorkingDate, rangesByDay, shop
 import { formatPrice } from '../lib/format';
 import { instagramUrl } from '../lib/instagram';
 import { InstagramIcon } from '../components/InstagramIcon';
+import { PortfolioManager } from '../components/PortfolioManager';
+import { useAuthStore } from '../store/auth.store';
 
 export function BarberProfile() {
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
+  const { user } = useAuthStore();
   const { data: barber, isLoading, isError } = useBarber(id!);
+  const { data: myBarber } = useMyBarber(user?.role === 'BARBER');
+  const [managingPortfolio, setManagingPortfolio] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(shopDate());
   const [selectedServiceId, setSelectedServiceId] = useState<string>(params.get('serviceId') || '');
@@ -67,6 +72,29 @@ export function BarberProfile() {
       <AppNavbar />
 
       <main className="page-container grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {myBarber?.id === barber.id && (
+          <section className="profile-owner-tools lg:col-span-3" aria-label="Administrar perfil">
+            <div>
+              <strong>Este es tu perfil público</strong>
+              <span>Sube fotos de tus cortes para que los clientes conozcan tu trabajo.</span>
+            </div>
+            <button
+              type="button"
+              className={managingPortfolio ? 'btn-secondary' : 'btn-primary'}
+              aria-expanded={managingPortfolio}
+              onClick={() => setManagingPortfolio((open) => !open)}
+            >
+              {managingPortfolio ? 'Cerrar administrador' : 'Subir trabajos'}
+            </button>
+          </section>
+        )}
+
+        {myBarber?.id === barber.id && managingPortfolio && (
+          <section className="lg:col-span-3" aria-label="Mis trabajos">
+            <PortfolioManager barberId={barber.id} />
+          </section>
+        )}
+
         <div className="lg:col-span-1 space-y-6">
           <div className="profile-hero">
             {barber.user.avatarUrl ? (

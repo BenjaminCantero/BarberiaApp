@@ -55,35 +55,35 @@ async function main() {
   const services = await Promise.all([
     prisma.service.upsert({
       where: { id: 'svc-corte' },
-      update: {},
+      update: { price: 15000 },
       create: {
         id: 'svc-corte',
         name: 'Corte de cabello',
         description: 'Corte clásico con tijera o máquina',
         durationMin: 30,
-        price: 15,
+        price: 15000,
       },
     }),
     prisma.service.upsert({
       where: { id: 'svc-barba' },
-      update: {},
+      update: { price: 10000 },
       create: {
         id: 'svc-barba',
         name: 'Arreglo de barba',
         description: 'Perfilado y arreglo de barba con navaja',
         durationMin: 20,
-        price: 10,
+        price: 10000,
       },
     }),
     prisma.service.upsert({
       where: { id: 'svc-combo' },
-      update: {},
+      update: { price: 22000 },
       create: {
         id: 'svc-combo',
         name: 'Combo corte + barba',
         description: 'Corte de cabello y arreglo de barba completo',
         durationMin: 45,
-        price: 22,
+        price: 22000,
       },
     }),
   ]);

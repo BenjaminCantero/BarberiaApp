@@ -57,6 +57,14 @@ export async function createBarber(req: AuthRequest, res: Response, next: NextFu
   }
 }
 
+export async function updateBarberAccount(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    res.json(await adminService.updateBarberAccount(req.params.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function listAppointments(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const parsed = adminAppointmentQuerySchema.parse({ query: req.query });

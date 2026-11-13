@@ -13,9 +13,29 @@ export const changeStatusSchema = z.object({
 });
 
 export const createBarberSchema = z.object({
+  body: z.union([
+    z.object({
+      userId: z.string().uuid(),
+      bio: z.string().max(500).optional(),
+    }),
+    z.object({
+      name: z.string().trim().min(2).max(100),
+      email: z.string().trim().email().transform((value) => value.toLowerCase()),
+      phone: z.string().trim().max(30).optional(),
+      password: z.string().min(8).regex(/[A-Z]/).regex(/[0-9]/),
+      bio: z.string().trim().max(500).optional(),
+    }),
+  ]),
+});
+
+export const updateBarberAccountSchema = z.object({
   body: z.object({
-    userId: z.string().uuid(),
-    bio: z.string().max(500).optional(),
+    name: z.string().trim().min(2).max(100).optional(),
+    email: z.string().trim().email().transform((value) => value.toLowerCase()).optional(),
+    phone: z.union([z.string().trim().max(30), z.null()]).optional(),
+    password: z.string().min(8).regex(/[A-Z]/).regex(/[0-9]/).optional(),
+  }).refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: 'Debes enviar al menos un dato para actualizar',
   }),
 });
 
@@ -42,6 +62,7 @@ export const reportsQuerySchema = z.object({
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>['body'];
 export type ChangeStatusInput = z.infer<typeof changeStatusSchema>['body'];
 export type CreateBarberInput = z.infer<typeof createBarberSchema>['body'];
+export type UpdateBarberAccountInput = z.infer<typeof updateBarberAccountSchema>['body'];
 export type AdminAppointmentQuery = z.infer<
   typeof adminAppointmentQuerySchema
 >['query'];

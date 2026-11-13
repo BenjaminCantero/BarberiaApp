@@ -47,12 +47,27 @@ export function useChangeUserStatus() {
 export function useCreateBarber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, bio }: { userId: string; bio?: string }) =>
-      adminApi.createBarber(userId, bio).then((r) => r.data),
+    mutationFn: (data: { userId: string; bio?: string } | {
+      name: string; email: string; phone?: string; password: string; bio?: string;
+    }) => adminApi.createBarber(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'users'] });
       qc.invalidateQueries({ queryKey: ['barbers'] });
       qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
+    },
+  });
+}
+
+export function useUpdateBarberAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ barberId, data }: {
+      barberId: string;
+      data: { name?: string; email?: string; phone?: string | null; password?: string };
+    }) => adminApi.updateBarberAccount(barberId, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+      qc.invalidateQueries({ queryKey: ['barbers'] });
     },
   });
 }

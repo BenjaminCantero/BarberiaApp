@@ -63,7 +63,7 @@ router.get('/:id', serviceController.getService);
  *               name:        { type: string, example: "Corte clásico" }
  *               description: { type: string }
  *               durationMin: { type: integer, example: 30 }
- *               price:       { type: number, example: 15.00 }
+ *               price:       { type: number, example: 15000 }
  *     responses:
  *       201:
  *         description: Servicio creado

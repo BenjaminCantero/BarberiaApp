@@ -9,6 +9,7 @@ import { ScheduleBlocks } from '../components/ScheduleBlocks';
 import { useCertificates, useUploadCertificate, useDeleteCertificate } from '../hooks/useCertificates';
 import { PortfolioManager } from '../components/PortfolioManager';
 import { BarberProfileForm } from '../components/BarberProfileForm';
+import { formatPrice } from '../lib/format';
 
 export function BarberDashboard() {
   const { user } = useAuthStore();
@@ -96,7 +97,7 @@ export function BarberDashboard() {
                       {service.description && <p className="text-xs text-slate-500">{service.description}</p>}
                       <p className="text-xs text-slate-400">{service.durationMin} min</p>
                     </div>
-                    <span className="text-xl font-black text-brand-700">${service.price}</span>
+                    <span className="text-xl font-black text-brand-700">{formatPrice(service.price)}</span>
                   </div>
                 ))}
               </div>

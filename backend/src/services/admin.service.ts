@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import bcrypt from 'bcryptjs';
 import { withAppointmentContact } from '../lib/appointment-contact';
 import { AppError } from '../middlewares/error.middleware';
 import { getZonedDateStr, zonedDayRange } from '../lib/timezone';
@@ -6,6 +7,7 @@ import type {
   ChangeRoleInput,
   ChangeStatusInput,
   CreateBarberInput,
+  UpdateBarberAccountInput,
   AdminAppointmentQuery,
 } from '../schemas/admin.schema';
 
@@ -78,6 +80,29 @@ export async function changeUserStatus(userId: string, data: ChangeStatusInput) 
 }
 
 export async function createBarberFromUser(data: CreateBarberInput) {
+  if (!('userId' in data)) {
+    const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existingUser) throw new AppError(409, 'El correo ya está registrado');
+
+    const passwordHash = await bcrypt.hash(data.password, 12);
+    return prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          passwordHash,
+          role: 'BARBER',
+          emailVerified: true,
+        },
+      });
+      return tx.barber.create({
+        data: { userId: user.id, bio: data.bio ?? '' },
+        include: { user: { select: { name: true, email: true, phone: true } } },
+      });
+    });
+  }
+
   const user = await prisma.user.findUnique({ where: { id: data.userId } });
   if (!user) throw new AppError(404, 'Usuario no encontrado');
 
@@ -90,6 +115,48 @@ export async function createBarberFromUser(data: CreateBarberInput) {
       data: { userId: data.userId, bio: data.bio ?? '' },
       include: { user: { select: { name: true, email: true } } },
     });
+  });
+}
+
+export async function updateBarberAccount(barberId: string, data: UpdateBarberAccountInput) {
+  const barber = await prisma.barber.findUnique({
+    where: { id: barberId },
+    select: { userId: true, user: { select: { email: true } } },
+  });
+  if (!barber) throw new AppError(404, 'Barbero no encontrado');
+
+  const email = data.email?.trim().toLowerCase();
+  if (email && email !== barber.user.email) {
+    const emailOwner = await prisma.user.findUnique({ where: { email } });
+    if (emailOwner) throw new AppError(409, 'El correo ya está registrado');
+  }
+
+  const passwordHash = data.password ? await bcrypt.hash(data.password, 12) : undefined;
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.update({
+      where: { id: barber.userId },
+      data: {
+        name: data.name,
+        email,
+        phone: data.phone === '' ? null : data.phone,
+        passwordHash,
+        ...(email ? { emailVerified: true } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        barber: { select: { id: true, isActive: true } },
+      },
+    });
+    if (passwordHash) {
+      await tx.refreshToken.deleteMany({ where: { userId: barber.userId } });
+    }
+    return user;
   });
 }
 
@@ -142,7 +209,9 @@ export async function getReports(fromStr?: string, toStr?: string) {
 
   const inRange = { startAt: { gte: from, lt: to } };
 
-  const [completed, cancelledCount, totalInRange] = await Promise.all([
+  const rangeLength = Math.max(1, to.getTime() - from.getTime());
+  const previousFrom = new Date(from.getTime() - rangeLength);
+  const [completed, statusRows, previousCompleted, newClients] = await Promise.all([
     prisma.appointment.findMany({
       where: { ...inRange, status: 'COMPLETED' },
       select: {
@@ -151,9 +220,22 @@ export async function getReports(fromStr?: string, toStr?: string) {
         barber: { select: { id: true, user: { select: { name: true } } } },
       },
     }),
-    prisma.appointment.count({ where: { ...inRange, status: 'CANCELLED' } }),
-    prisma.appointment.count({ where: inRange }),
+    prisma.appointment.groupBy({
+      by: ['status'],
+      where: inRange,
+      _count: { status: true },
+    }),
+    prisma.appointment.findMany({
+      where: { startAt: { gte: previousFrom, lt: from }, status: 'COMPLETED' },
+      select: { service: { select: { price: true } } },
+    }),
+    prisma.user.count({ where: { role: 'CLIENT', createdAt: { gte: from, lt: to } } }),
   ]);
+
+  const status = Object.fromEntries(statusRows.map((row) => [row.status, row._count.status]));
+  const cancelledCount = status.CANCELLED ?? 0;
+  const totalInRange = Object.values(status).reduce((sum, count) => sum + count, 0);
+  const previousRevenue = previousCompleted.reduce((sum, item) => sum + Number(item.service.price), 0);
 
   let revenue = 0;
   const byService = new Map<string, { id: string; name: string; count: number; revenue: number }>();
@@ -188,6 +270,17 @@ export async function getReports(fromStr?: string, toStr?: string) {
     total: totalInRange,
     completionRate: totalInRange ? Number(((completed.length / totalInRange) * 100).toFixed(1)) : 0,
     averageTicket: completed.length ? round(revenue / completed.length) : 0,
+    previousRevenue: round(previousRevenue),
+    revenueChange: previousRevenue
+      ? Number((((revenue - previousRevenue) / previousRevenue) * 100).toFixed(1))
+      : revenue > 0 ? 100 : 0,
+    newClients,
+    status: {
+      pending: status.PENDING ?? 0,
+      confirmed: status.CONFIRMED ?? 0,
+      completed: status.COMPLETED ?? 0,
+      cancelled: cancelledCount,
+    },
     topServices: [...byService.values()]
       .map((s) => ({ ...s, revenue: round(s.revenue) }))
       .sort((a, b) => b.revenue - a.revenue),

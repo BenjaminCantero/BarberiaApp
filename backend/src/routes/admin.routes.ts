@@ -5,6 +5,7 @@ import {
   changeRoleSchema,
   changeStatusSchema,
   createBarberSchema,
+  updateBarberAccountSchema,
   adminAppointmentQuerySchema,
   reportsQuerySchema,
 } from '../schemas/admin.schema';
@@ -31,6 +32,7 @@ router.patch('/users/:id/status', validate(changeStatusSchema), adminController.
 
 // Crear barbero desde usuario existente
 router.post('/barbers', validate(createBarberSchema), adminController.createBarber);
+router.patch('/barbers/:id/account', validate(updateBarberAccountSchema), adminController.updateBarberAccount);
 
 // Todas las citas
 router.get('/appointments', validate(adminAppointmentQuerySchema), adminController.listAppointments);
