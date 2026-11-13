@@ -20,11 +20,11 @@ async function main() {
   });
 
   const barberUser = await prisma.user.upsert({
-    where: { email: 'mateo@barberia.com' },
+    where: { email: 'barberdragon5@gmail.com' },
     update: {},
     create: {
       name: 'Mateo Cayuman',
-      email: 'mateo@barberia.com',
+      email: 'barberdragon5@gmail.com',
       passwordHash: barberHash,
       role: Role.BARBER,
       phone: '+56 9 8298 4323',
@@ -97,35 +97,21 @@ async function main() {
   }
 
   // Horario de lunes a viernes 9:00 - 19:00, sábados 10:00 - 15:00
-  const weekdays = [1, 2, 3, 4, 5];
-  for (const day of weekdays) {
-    await prisma.schedule.upsert({
-      where: { id: `sch-${barber.id}-${day}` },
-      update: {},
-      create: {
-        id: `sch-${barber.id}-${day}`,
-        barberId: barber.id,
-        dayOfWeek: day,
-        startTime: '09:00',
-        endTime: '19:00',
-      },
+  // Solo crea el horario inicial si el barbero no tiene uno: si ya lo editó
+  // desde la web, re-ejecutar el seed no debe duplicar ni pisar sus tramos.
+  const hasSchedule = await prisma.schedule.count({ where: { barberId: barber.id } });
+  if (hasSchedule === 0) {
+    await prisma.schedule.createMany({
+      data: [
+        ...[1, 2, 3, 4, 5].map((day) => ({ barberId: barber.id, dayOfWeek: day, startTime: '09:00', endTime: '19:00' })),
+        { barberId: barber.id, dayOfWeek: 6, startTime: '10:00', endTime: '15:00' },
+      ],
     });
   }
-  await prisma.schedule.upsert({
-    where: { id: `sch-${barber.id}-6` },
-    update: {},
-    create: {
-      id: `sch-${barber.id}-6`,
-      barberId: barber.id,
-      dayOfWeek: 6,
-      startTime: '10:00',
-      endTime: '15:00',
-    },
-  });
 
   console.log('Seed completado:');
   console.log('  Admin:   admin@barberia.com / Admin1234');
-  console.log('  Barbero: mateo@barberia.com / Barber1234');
+  console.log('  Barbero: barberdragon5@gmail.com / Barber1234');
   console.log('  Cliente: cliente@example.com / Client1234');
 }
 
