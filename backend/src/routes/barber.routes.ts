@@ -152,7 +152,7 @@ router.get('/:id/schedule', barberController.getSchedule);
  *                     isActive:  { type: boolean }
  *     responses:
  *       200:
- *         description: Horario actualizado
+ *         description: Horario actualizado; `cancelled` = citas futuras fuera del nuevo turno que se cancelaron (con aviso al cliente)
  */
 router.put(
   '/:id/schedule',
@@ -191,7 +191,7 @@ router.put(
  *               reason:    { type: string, example: "Vacaciones" }
  *     responses:
  *       201:
- *         description: Bloqueo creado; `conflicts` = citas activas que caen dentro
+ *         description: Bloqueo creado; `cancelled` = citas activas dentro del bloqueo que se cancelaron (con aviso al cliente)
  * /barbers/{id}/blocks/{blockId}:
  *   delete:
  *     summary: Eliminar un bloqueo
@@ -224,6 +224,8 @@ router.delete('/:id/blocks/:blockId', authenticate, authorize('BARBER', 'ADMIN')
  *     responses:
  *       200:
  *         description: Lista de slots disponibles con hora inicio/fin
+ *       404:
+ *         description: Barbero inactivo/inexistente, o servicio que el barbero no ofrece
  */
 router.get(
   '/:id/availability',

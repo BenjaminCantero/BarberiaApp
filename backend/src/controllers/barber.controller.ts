@@ -50,7 +50,7 @@ export async function setSchedule(req: AuthRequest, res: Response, next: NextFun
       req.user!.role,
       req.body,
     );
-    res.json({ message: `Horario actualizado (${result.count} entradas)` });
+    res.json({ message: `Horario actualizado (${result.count} entradas)`, cancelled: result.cancelled });
   } catch (err) { next(err); }
 }
 

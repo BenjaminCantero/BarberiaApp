@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { barberApi, type CreateBlockPayload, type ScheduleEntry } from '../api/barber.api';
@@ -40,19 +41,29 @@ export function useAvailability(barberId: string, date: string, serviceId?: stri
     queryKey: ['availability', barberId, date, serviceId],
     queryFn: () => barberApi.getAvailability(barberId, date, serviceId).then((r) => r.data),
     enabled: !!barberId && !!date && !!serviceId,
-    staleTime: 30_000,
+    // Casi en tiempo real: refresca cada 15 s mientras la pestaña está visible y
+    // al volver a ella; el servidor sigue siendo la garantía final (409).
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    retry: (count, err) => !(isAxiosError(err) && err.response?.status === 404) && count < 2,
   });
 }
 
 export function useSetSchedule(barberId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (schedule: ScheduleEntry[]) => barberApi.setSchedule(barberId, schedule),
-    onSuccess: () => {
+    mutationFn: (schedule: ScheduleEntry[]) => barberApi.setSchedule(barberId, schedule).then((r) => r.data),
+    onSuccess: ({ cancelled }) => {
+      qc.invalidateQueries({ queryKey: ['appointments'] });
       qc.invalidateQueries({ queryKey: ['barbers', barberId] });
       qc.invalidateQueries({ queryKey: ['barbers', barberId, 'schedule'] });
       qc.invalidateQueries({ queryKey: ['availability', barberId] });
-      toast.success('Horario guardado');
+      if (cancelled > 0) {
+        toast.warning(`Horario guardado. Se cancelaron ${cancelled} cita${cancelled > 1 ? 's' : ''} fuera del nuevo turno y se avisó a los clientes.`);
+      } else {
+        toast.success('Horario guardado');
+      }
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo guardar el horario')),
   });
@@ -70,11 +81,12 @@ export function useCreateBlock(barberId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateBlockPayload) => barberApi.createBlock(barberId, data).then((r) => r.data),
-    onSuccess: ({ conflicts }) => {
+    onSuccess: ({ cancelled }) => {
       qc.invalidateQueries({ queryKey: ['barbers', barberId, 'blocks'] });
       qc.invalidateQueries({ queryKey: ['availability', barberId] });
-      if (conflicts > 0) {
-        toast.warning(`Bloqueo guardado. Tienes ${conflicts} cita${conflicts > 1 ? 's' : ''} activa${conflicts > 1 ? 's' : ''} en ese periodo: revísala${conflicts > 1 ? 's' : ''} en la agenda.`);
+      qc.invalidateQueries({ queryKey: ['appointments'] });
+      if (cancelled > 0) {
+        toast.warning(`Bloqueo guardado. Se cancelaron ${cancelled} cita${cancelled > 1 ? 's' : ''} en ese periodo y se avisó a los clientes.`);
       } else {
         toast.success('Bloqueo guardado');
       }

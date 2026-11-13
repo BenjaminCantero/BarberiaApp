@@ -5,16 +5,23 @@ const { mockPrisma } = vi.hoisted(() => ({
     barber: { findUnique: vi.fn() },
     schedule: { deleteMany: vi.fn(), createMany: vi.fn() },
     scheduleBlock: { create: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
-    appointment: { count: vi.fn() },
+    appointment: { findMany: vi.fn(), updateMany: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
 
 vi.mock('../lib/prisma', () => ({ prisma: mockPrisma }));
 vi.mock('./review.service', () => ({ getRatingSummary: vi.fn(), getRatingSummaries: vi.fn() }));
+vi.mock('./notification.service', () => ({ notifyAppointmentCancelled: vi.fn().mockResolvedValue(undefined) }));
 
 import { setSchedule, createBlock, deleteBlock } from './barber.service';
-import { getZonedDateStr, zonedWallTimeToUtc } from '../lib/timezone';
+import { getZonedDateStr, zonedWallTimeToUtc, civilDateDayOfWeek } from '../lib/timezone';
+import * as notifications from './notification.service';
+
+const apptRow = (id: string, day: string, from: string, to: string) => ({
+  id, startAt: zonedWallTimeToUtc(day, from), endAt: zonedWallTimeToUtc(day, to),
+  status: 'PENDING', client: { name: 'C', email: 'c@x' }, barber: { user: {} }, service: {},
+});
 
 async function catchErr(fn: () => Promise<unknown>): Promise<{ statusCode: number; message: string }> {
   try { await fn(); } catch (e) { return e as { statusCode: number; message: string }; }
@@ -26,10 +33,11 @@ const futureDay = (days = 7) => getZonedDateStr(new Date(Date.now() + days * 86_
 beforeEach(() => {
   vi.clearAllMocks();
   mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', userId: 'u1' });
-  mockPrisma.$transaction.mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops));
+  mockPrisma.$transaction.mockImplementation((cb: (tx: unknown) => unknown) => cb(mockPrisma));
   mockPrisma.schedule.deleteMany.mockResolvedValue({ count: 0 });
   mockPrisma.schedule.createMany.mockImplementation(async ({ data }: { data: unknown[] }) => ({ count: data.length }));
-  mockPrisma.appointment.count.mockResolvedValue(0);
+  mockPrisma.appointment.findMany.mockResolvedValue([]);
+  mockPrisma.appointment.updateMany.mockResolvedValue({ count: 0 });
 });
 
 describe('setSchedule', () => {
@@ -42,6 +50,28 @@ describe('setSchedule', () => {
     });
     expect(res.count).toBe(2);
     expect(mockPrisma.$transaction).toHaveBeenCalledOnce();
+  });
+
+  it('cancela y avisa las citas futuras que quedan fuera del nuevo turno', async () => {
+    const day = futureDay();
+    const dow = civilDateDayOfWeek(day);
+    const inside = apptRow('in', day, '10:00', '10:30');
+    const outside = apptRow('out', day, '17:00', '17:30');
+    mockPrisma.appointment.findMany
+      .mockResolvedValueOnce([inside, outside]) // citas futuras activas
+      .mockResolvedValueOnce([outside]);        // filas a cancelar
+
+    const res = await setSchedule('b1', 'u1', 'BARBER', {
+      schedule: [{ dayOfWeek: dow, startTime: '09:00', endTime: '13:00', isActive: true }],
+    });
+    expect(res.cancelled).toBe(1);
+    expect(mockPrisma.appointment.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: { in: ['out'] } }),
+    }));
+    expect(mockPrisma.appointment.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['out'] } }, data: { status: 'CANCELLED' },
+    });
+    expect(notifications.notifyAppointmentCancelled).toHaveBeenCalledOnce();
   });
 
   it('permite dejar el horario vacío', async () => {
@@ -90,11 +120,17 @@ describe('createBlock', () => {
     });
   });
 
-  it('informa cuántas citas activas quedan dentro del bloqueo', async () => {
+  it('cancela y avisa las citas activas que caen dentro del bloqueo', async () => {
+    const day = futureDay();
     mockPrisma.scheduleBlock.create.mockResolvedValue({ id: 'blk' });
-    mockPrisma.appointment.count.mockResolvedValue(2);
-    const res = await createBlock('b1', 'u1', 'BARBER', { startDate: futureDay() });
-    expect(res.conflicts).toBe(2);
+    const rows = [apptRow('a', day, '10:00', '10:30'), apptRow('b', day, '11:00', '11:30')];
+    mockPrisma.appointment.findMany.mockResolvedValueOnce(rows).mockResolvedValueOnce(rows);
+    const res = await createBlock('b1', 'u1', 'BARBER', { startDate: day });
+    expect(res.cancelled).toBe(2);
+    expect(mockPrisma.appointment.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['a', 'b'] } }, data: { status: 'CANCELLED' },
+    });
+    expect(notifications.notifyAppointmentCancelled).toHaveBeenCalledTimes(2);
   });
 
   it('rechaza un bloqueo que ya terminó', async () => {

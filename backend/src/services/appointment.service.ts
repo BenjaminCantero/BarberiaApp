@@ -4,10 +4,10 @@ import { withAppointmentContact } from '../lib/appointment-contact';
 import { AppError } from '../middlewares/error.middleware';
 import * as notifications from './notification.service';
 import { zonedDayRange } from '../lib/timezone';
-import { assertSlotFree, assertWithinSchedule } from './availability.service';
+import { assertClientFree, assertSlotFree, assertWithinSchedule } from './availability.service';
 import type { CreateAppointmentInput } from '../schemas/appointment.schema';
 
-const APPOINTMENT_SELECT = {
+export const APPOINTMENT_SELECT = {
   id: true,
   startAt: true,
   endAt: true,
@@ -60,9 +60,11 @@ export async function createAppointment(clientId: string | null, data: CreateApp
     appointment = await prisma.$transaction(
       async (tx) => {
         await assertSlotFree(tx, barberId, startAt, endAt);
+        await assertClientFree(tx, { clientId, guestEmail: guest?.email }, startAt, endAt);
 
         return tx.appointment.create({
-          data: { clientId, barberId, serviceId, startAt, endAt, notes,
+          // Las reservas se confirman automáticamente: el slot ya se validó arriba.
+          data: { clientId, barberId, serviceId, startAt, endAt, notes, status: 'CONFIRMED',
             guestName: guest?.name, guestEmail: guest?.email, guestPhone: guest?.phone },
           select: APPOINTMENT_SELECT,
         });
@@ -92,7 +94,7 @@ export async function rescheduleAppointment(
 ) {
   const appointment = await prisma.appointment.findUnique({
     where: { id },
-    select: { id: true, clientId: true, barberId: true, serviceId: true, status: true, startAt: true },
+    select: { id: true, clientId: true, guestEmail: true, barberId: true, serviceId: true, status: true, startAt: true },
   });
   if (!appointment) throw new AppError(404, 'Cita no encontrada');
 
@@ -133,6 +135,7 @@ export async function rescheduleAppointment(
     updated = await prisma.$transaction(
       async (tx) => {
         await assertSlotFree(tx, appointment.barberId, startAt, endAt, id);
+        await assertClientFree(tx, appointment, startAt, endAt, id);
 
         return tx.appointment.update({
           where: { id },
@@ -221,7 +224,7 @@ export async function updateAppointmentStatus(
 ) {
   const appointment = await prisma.appointment.findUnique({
     where: { id },
-    select: { id: true, clientId: true, barberId: true, status: true, startAt: true },
+    select: { id: true, clientId: true, barberId: true, status: true, startAt: true, endAt: true },
   });
   if (!appointment) throw new AppError(404, 'Cita no encontrada');
 
@@ -259,9 +262,23 @@ export async function updateAppointmentStatus(
     );
   }
 
-  const updated = await prisma.appointment.update({
-    where: { id },
+  // Completar antes de que termine liberaría el horario y permitiría reservar encima.
+  if (newStatus === 'COMPLETED' && appointment.endAt.getTime() > Date.now()) {
+    throw new AppError(400, 'Solo puedes completar una cita después de que termine');
+  }
+
+  // Transición atómica: solo actualiza si el estado sigue siendo el que validamos.
+  // Si otra petición (p. ej. confirmar vs. cancelar) ganó la carrera, count = 0.
+  const { count } = await prisma.appointment.updateMany({
+    where: { id, status: appointment.status },
     data: { status: newStatus },
+  });
+  if (count === 0) {
+    throw new AppError(409, 'La cita cambió de estado mientras tanto. Recarga e inténtalo de nuevo.');
+  }
+
+  const updated = await prisma.appointment.findUniqueOrThrow({
+    where: { id },
     select: APPOINTMENT_SELECT,
   });
 

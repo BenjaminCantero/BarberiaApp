@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { appointmentApi, type AppointmentStatus, type CreateAppointmentPayload } from '../api/appointment.api';
@@ -28,9 +29,13 @@ export function useCreateAppointment() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['appointments'] });
       qc.invalidateQueries({ queryKey: ['availability'] });
-      toast.success('Reserva creada. Te avisaremos cuando el barbero la confirme.');
+      toast.success('Reserva confirmada. Te enviamos los detalles por correo.');
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo crear la reserva')),
+    onError: (err) => {
+      // Horario tomado por otro cliente: refrescar los slots para no mostrarlo libre.
+      if (isAxiosError(err) && err.response?.status === 409) qc.invalidateQueries({ queryKey: ['availability'] });
+      toast.error(getApiErrorMessage(err, 'No se pudo crear la reserva'));
+    },
   });
 }
 
@@ -49,7 +54,11 @@ export function useUpdateAppointmentStatus() {
       };
       toast.success(labels[variables.status] ?? 'Cita actualizada');
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo actualizar la cita')),
+    onError: (err) => {
+      // 409 = otra persona cambió el estado antes: mostrar el estado real.
+      if (isAxiosError(err) && err.response?.status === 409) qc.invalidateQueries({ queryKey: ['appointments'] });
+      toast.error(getApiErrorMessage(err, 'No se pudo actualizar la cita'));
+    },
   });
 }
 
@@ -63,6 +72,9 @@ export function useRescheduleAppointment() {
       qc.invalidateQueries({ queryKey: ['availability'] });
       toast.success('Cita reprogramada');
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo reprogramar la cita')),
+    onError: (err) => {
+      if (isAxiosError(err) && err.response?.status === 409) qc.invalidateQueries({ queryKey: ['availability'] });
+      toast.error(getApiErrorMessage(err, 'No se pudo reprogramar la cita'));
+    },
   });
 }

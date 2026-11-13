@@ -105,23 +105,23 @@ export async function notifyAppointmentCreated(appt: AppointmentForEmail): Promi
     // Al cliente
     [
       appt.client.email,
-      `Tu reserva en ${SHOP_NAME} está pendiente de confirmación`,
-      layout('Reserva recibida', `
+      `Tu cita en ${SHOP_NAME} está confirmada`,
+      layout('Reserva confirmada', `
         <p>Hola <strong>${appt.client.name}</strong>,</p>
-        <p>Recibimos tu solicitud de cita:</p>
+        <p>Tu cita quedó confirmada:</p>
         <ul>
           <li><strong>Servicio:</strong> ${appt.service.name}</li>
           <li><strong>Barbero:</strong> ${appt.barber.user.name}</li>
           <li><strong>Fecha y hora:</strong> ${when}</li>
         </ul>
-        <p>Te avisaremos cuando el barbero la confirme.</p>`),
+        <p>Si necesitas cancelar o reprogramar, hazlo con al menos 2 horas de antelación.</p>`),
     ],
     // Al barbero
     [
       appt.barber.user.email,
       `Nueva reserva de ${appt.client.name}`,
       layout('Nueva reserva', `
-        <p>Tienes una nueva solicitud de cita:</p>
+        <p>Tienes una nueva cita confirmada:</p>
         <ul>
           <li><strong>Cliente:</strong> ${appt.client.name}</li>
           <li><strong>Servicio:</strong> ${appt.service.name}</li>

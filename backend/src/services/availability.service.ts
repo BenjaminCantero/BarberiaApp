@@ -29,6 +29,22 @@ export async function getAvailableSlots(
   date: string,
   serviceId?: string,
 ): Promise<TimeSlot[]> {
+  // Validar barbero y servicio para no ofrecer horas que la reserva rechazaría.
+  const barber = await prisma.barber.findUnique({ where: { id: barberId }, select: { isActive: true } });
+  if (!barber || !barber.isActive) throw new AppError(404, 'Barbero no encontrado o inactivo');
+
+  let durationMin = 30;
+  if (serviceId) {
+    const offered = await prisma.barberService.findUnique({
+      where: { barberId_serviceId: { barberId, serviceId } },
+      select: { service: { select: { durationMin: true, isActive: true } } },
+    });
+    if (!offered || !offered.service.isActive) {
+      throw new AppError(404, 'Servicio no disponible para este barbero');
+    }
+    durationMin = offered.service.durationMin;
+  }
+
   const dayOfWeek = civilDateDayOfWeek(date);
 
   // Un día puede tener varios tramos (p. ej. 09-13 y 15-19 con pausa de almuerzo).
@@ -37,14 +53,6 @@ export async function getAvailableSlots(
     orderBy: { startTime: 'asc' },
   });
   if (ranges.length === 0) return [];
-
-  let durationMin = 30;
-  if (serviceId) {
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId, isActive: true },
-    });
-    if (service) durationMin = service.durationMin;
-  }
 
   const possibleSlots: TimeSlot[] = ranges.flatMap((r) =>
     generateCandidateSlots(r.startTime, r.endTime, durationMin, SLOT_STEP_MIN).map((s) => ({
@@ -93,10 +101,48 @@ export async function assertWithinSchedule(barberId: string, startAt: Date, endA
   });
   if (ranges.length === 0) throw new AppError(400, 'El barbero no trabaja ese día');
 
-  const sameDay = endAt.getTime() - startAt.getTime() < 86_400_000;
-  if (!sameDay || !fitsInRanges(ranges, getZonedHHMM(startAt), getZonedHHMM(endAt))) {
+  if (!isWithinRanges(ranges, startAt, endAt)) {
     throw new AppError(400, 'El horario solicitado está fuera del turno del barbero');
   }
+}
+
+/** true si [startAt, endAt) cae completo dentro de alguno de los tramos (del mismo día). */
+export function isWithinRanges(
+  ranges: Array<{ startTime: string; endTime: string }>,
+  startAt: Date,
+  endAt: Date,
+): boolean {
+  const sameDay = endAt.getTime() - startAt.getTime() < 86_400_000;
+  return sameDay && fitsInRanges(ranges, getZonedHHMM(startAt), getZonedHHMM(endAt));
+}
+
+/**
+ * Lanza 409 si el mismo cliente (por cuenta o email de invitado) ya tiene otra
+ * cita activa que se cruza en horario, aunque sea con otro barbero.
+ */
+export async function assertClientFree(
+  db: Db,
+  owner: { clientId?: string | null; guestEmail?: string | null },
+  startAt: Date,
+  endAt: Date,
+  excludeAppointmentId?: string,
+): Promise<void> {
+  const who: Prisma.AppointmentWhereInput[] = [];
+  if (owner.clientId) who.push({ clientId: owner.clientId });
+  if (owner.guestEmail) who.push({ guestEmail: { equals: owner.guestEmail, mode: 'insensitive' } });
+  if (who.length === 0) return;
+
+  const clash = await db.appointment.findFirst({
+    where: {
+      OR: who,
+      status: { in: [...ACTIVE_STATUSES] },
+      startAt: { lt: endAt },
+      endAt: { gt: startAt },
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (clash) throw new AppError(409, 'Ya tienes otra cita en ese horario.');
 }
 
 /**

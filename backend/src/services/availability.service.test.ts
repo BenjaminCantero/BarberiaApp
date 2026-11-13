@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
     schedule: { findMany: vi.fn() },
-    service: { findUnique: vi.fn() },
+    barber: { findUnique: vi.fn() },
+    barberService: { findUnique: vi.fn() },
     appointment: { findMany: vi.fn() },
     scheduleBlock: { findMany: vi.fn() },
   },
@@ -23,7 +24,25 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockPrisma.appointment.findMany.mockResolvedValue([]);
   mockPrisma.scheduleBlock.findMany.mockResolvedValue([]);
-  mockPrisma.service.findUnique.mockResolvedValue({ durationMin: 30 });
+  mockPrisma.barber.findUnique.mockResolvedValue({ isActive: true });
+  mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30, isActive: true } });
+});
+
+describe('getAvailableSlots: validación', () => {
+  it('404 si el barbero está inactivo', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ isActive: false });
+    await expect(getAvailableSlots('b1', futureDay(), 's1')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('404 si el servicio no existe o el barbero no lo ofrece', async () => {
+    mockPrisma.barberService.findUnique.mockResolvedValue(null);
+    await expect(getAvailableSlots('b1', futureDay(), 'nope')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('404 si el servicio está inactivo', async () => {
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30, isActive: false } });
+    await expect(getAvailableSlots('b1', futureDay(), 's1')).rejects.toMatchObject({ statusCode: 404 });
+  });
 });
 
 describe('getAvailableSlots', () => {

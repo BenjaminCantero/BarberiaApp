@@ -16,6 +16,8 @@ const { mockPrisma } = vi.hoisted(() => ({
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       findMany: vi.fn(),
     },
     // La forma callback: ejecuta la transacción pasándole el mismo mock como `tx`.
@@ -204,7 +206,42 @@ describe('createAppointment', () => {
 
     const result = await createAppointment('c1', baseData);
     expect(result).toMatchObject({ id: 'new' });
-    expect(mockPrisma.appointment.create).toHaveBeenCalledOnce();
+    expect(mockPrisma.appointment.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'CONFIRMED' }), // confirmación automática
+    }));
+  });
+});
+
+describe('createAppointment: solapes del mismo cliente', () => {
+  it('409 si el cliente ya tiene otra cita que se cruza, aunque sea con otro barbero', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
+    // 1ª findFirst: colisión del barbero (libre); 2ª: solape del cliente.
+    mockPrisma.appointment.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'other' });
+
+    const err = await catchErr(() => createAppointment('c1', { barberId: 'b1', serviceId: 's1', startAt: futureAt().toISOString() }));
+    expect(err.statusCode).toBe(409);
+    expect(err.message).toMatch(/otra cita/);
+    expect(mockPrisma.appointment.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ OR: [{ clientId: 'c1' }] }),
+    }));
+    expect(mockPrisma.appointment.create).not.toHaveBeenCalled();
+  });
+
+  it('un invitado se identifica por email sin distinguir mayúsculas', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
+    mockPrisma.appointment.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'other' });
+
+    const err = await catchErr(() => createAppointment(null,
+      { barberId: 'b1', serviceId: 's1', startAt: futureAt().toISOString() },
+      { name: 'Ana', email: 'Ana@Mail.com' }));
+    expect(err.statusCode).toBe(409);
+    expect(mockPrisma.appointment.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ OR: [{ guestEmail: { equals: 'Ana@Mail.com', mode: 'insensitive' } }] }),
+    }));
   });
 });
 
@@ -326,13 +363,61 @@ describe('updateAppointmentStatus', () => {
       id: 'a1', clientId: 'c1', barberId: 'b1', status: 'PENDING', startAt: futureAt(),
     });
     mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
-    mockPrisma.appointment.update.mockResolvedValue({ id: 'a1', client: { email: 'x' }, barber: { user: {} }, service: {} });
+    mockPrisma.appointment.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.appointment.findUniqueOrThrow.mockResolvedValue({ id: 'a1', client: { email: 'x' }, barber: { user: {} }, service: {} });
 
     const result = await updateAppointmentStatus('a1', 'barberUser', 'BARBER', 'CONFIRMED');
     expect(result).toMatchObject({ id: 'a1' });
-    expect(mockPrisma.appointment.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'CONFIRMED' } }),
-    );
+    // La transición se condiciona al estado leído (compare-and-set).
+    expect(mockPrisma.appointment.updateMany).toHaveBeenCalledWith({
+      where: { id: 'a1', status: 'PENDING' },
+      data: { status: 'CONFIRMED' },
+    });
+  });
+
+  it('si el barbero cancela, se envía el correo de cancelación al cliente', async () => {
+    const notifications = await import('./notification.service');
+    mockPrisma.appointment.findUnique.mockResolvedValue({
+      id: 'a1', clientId: 'c1', barberId: 'b1', status: 'CONFIRMED', startAt: futureAt(), endAt: futureAt(13),
+    });
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
+    mockPrisma.appointment.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.appointment.findUniqueOrThrow.mockResolvedValue({ id: 'a1', client: { email: 'x' }, barber: { user: {} }, service: {} });
+    await updateAppointmentStatus('a1', 'barberUser', 'BARBER', 'CANCELLED');
+    expect(notifications.notifyAppointmentCancelled).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }), 'BARBER');
+  });
+
+  it('409 si otra petición cambió el estado entre la lectura y la escritura', async () => {
+    mockPrisma.appointment.findUnique.mockResolvedValue({
+      id: 'a1', clientId: 'c1', barberId: 'b1', status: 'PENDING', startAt: futureAt(), endAt: futureAt(13),
+    });
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
+    mockPrisma.appointment.updateMany.mockResolvedValue({ count: 0 });
+    const err = await catchErr(() => updateAppointmentStatus('a1', 'barberUser', 'BARBER', 'CANCELLED'));
+    expect(err.statusCode).toBe(409);
+  });
+
+  it('400 si se intenta completar una cita que aún no termina', async () => {
+    mockPrisma.appointment.findUnique.mockResolvedValue({
+      id: 'a1', clientId: 'c1', barberId: 'b1', status: 'CONFIRMED', startAt: futureAt(), endAt: futureAt(13),
+    });
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
+    const err = await catchErr(() => updateAppointmentStatus('a1', 'barberUser', 'BARBER', 'COMPLETED'));
+    expect(err.statusCode).toBe(400);
+    expect(mockPrisma.appointment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('permite completar una cita que ya terminó', async () => {
+    const past = new Date(Date.now() - 3_600_000);
+    mockPrisma.appointment.findUnique.mockResolvedValue({
+      id: 'a1', clientId: 'c1', barberId: 'b1', status: 'CONFIRMED',
+      startAt: new Date(past.getTime() - 1_800_000), endAt: past,
+    });
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
+    mockPrisma.appointment.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.appointment.findUniqueOrThrow.mockResolvedValue({ id: 'a1', client: { email: 'x' }, barber: { user: {} }, service: {} });
+    await updateAppointmentStatus('a1', 'barberUser', 'BARBER', 'COMPLETED');
+    expect(mockPrisma.appointment.updateMany).toHaveBeenCalledOnce();
   });
 });
 

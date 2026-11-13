@@ -54,8 +54,8 @@ export function BookingPage() {
   if (booked) return (
     <div className="app-shell flex items-center justify-center px-4">
       <main className="surface max-w-xl space-y-5 p-8" aria-live="polite">
-        <h1 className="text-3xl font-black">Reserva recibida</h1>
-        <p>Tu hora del {formatDatetime(startAt)} quedó pendiente de confirmación por el barbero.</p>
+        <h1 className="text-3xl font-black">Reserva confirmada</h1>
+        <p>Tu hora del {formatDatetime(startAt)} quedó confirmada.</p>
         <p>Enviaremos los avisos y un recordatorio a <strong>{email}</strong>. Revisa también tu carpeta de spam. No necesitas crear una cuenta.</p>
         <p className="text-sm text-slate-600">Para cancelar o cambiar tu hora, contacta directamente a la barbería{barber?.user.phone ? ` al ${barber.user.phone}` : ''}.</p>
         <Link to="/barbers" className="btn-primary">Volver a los barberos</Link>
@@ -171,7 +171,7 @@ export function BookingPage() {
               </button>
 
               <p className="text-center text-xs text-slate-400">
-                La cita quedará pendiente de confirmación. Para cambios o cancelaciones, contacta a la barbería.
+                La cita queda confirmada al instante. Para cambios o cancelaciones, contacta a la barbería.
               </p>
             </>
           )}

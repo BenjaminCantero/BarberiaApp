@@ -47,6 +47,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
   };
 
   const isPast = new Date(startAt) < new Date();
+  const hasEnded = new Date(endAt) <= new Date();
   const hoursUntil = (new Date(startAt).getTime() - Date.now()) / 3_600_000;
   const canClientCancel = status === 'PENDING' || (status === 'CONFIRMED' && hoursUntil >= 2);
   const canReschedule =
@@ -131,7 +132,8 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
           {viewAs !== 'CLIENT' && status === 'CONFIRMED' && (
             <button
               onClick={() => handleStatus('COMPLETED')}
-              disabled={update.isPending}
+              disabled={update.isPending || !hasEnded}
+              title={hasEnded ? undefined : 'Disponible cuando termine la cita'}
               className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-900 disabled:opacity-50"
             >
               Marcar completada

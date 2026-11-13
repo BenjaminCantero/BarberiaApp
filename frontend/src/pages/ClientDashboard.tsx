@@ -50,7 +50,7 @@ export function ClientDashboard() {
           <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-4">
             <p className="font-black text-emerald-800">¡Reserva creada!</p>
             <p className="mt-0.5 text-sm text-emerald-700">
-              Tu cita está pendiente de confirmación por el barbero.
+              Tu cita quedó confirmada. Te enviamos los detalles por correo.
             </p>
           </div>
         )}

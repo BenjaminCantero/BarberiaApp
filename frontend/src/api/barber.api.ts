@@ -65,13 +65,13 @@ export const barberApi = {
   getSchedule: (id: string) => api.get<Schedule[]>(`/barbers/${id}/schedule`),
 
   setSchedule: (id: string, schedule: ScheduleEntry[]) =>
-    api.put(`/barbers/${id}/schedule`, { schedule }),
+    api.put<{ message: string; cancelled: number }>(`/barbers/${id}/schedule`, { schedule }),
 
   listBlocks: (id: string, params?: { from?: string; to?: string }) =>
     api.get<ScheduleBlock[]>(`/barbers/${id}/blocks`, { params }),
 
   createBlock: (id: string, data: CreateBlockPayload) =>
-    api.post<{ block: ScheduleBlock; conflicts: number }>(`/barbers/${id}/blocks`, data),
+    api.post<{ block: ScheduleBlock; cancelled: number }>(`/barbers/${id}/blocks`, data),
 
   deleteBlock: (id: string, blockId: string) => api.delete(`/barbers/${id}/blocks/${blockId}`),
 

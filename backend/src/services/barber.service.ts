@@ -2,8 +2,12 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/error.middleware';
 import type { UpdateBarberInput, SetScheduleInput, CreateBlockInput } from '../schemas/barber.schema';
 import { validateDayRanges } from '../lib/time';
-import { getZonedDateStr, zonedDayRange, zonedWallTimeToUtc } from '../lib/timezone';
-import { getAvailableSlots } from './availability.service';
+import { getZonedDateStr, getZonedDayOfWeek, zonedDayRange, zonedWallTimeToUtc } from '../lib/timezone';
+import { getAvailableSlots, isWithinRanges } from './availability.service';
+import { APPOINTMENT_SELECT } from './appointment.service';
+import { withAppointmentContact } from '../lib/appointment-contact';
+import * as notifications from './notification.service';
+import { Prisma } from '@prisma/client';
 import { getRatingSummary, getRatingSummaries } from './review.service';
 import { normalizeInstagram } from '../lib/instagram';
 
@@ -98,15 +102,52 @@ export async function setSchedule(barberId: string, requesterId: string, request
     if (error) throw new AppError(400, `Horario del ${DAY_NAMES[day]}: ${error}`);
   }
 
-  // Reemplazo atómico: si el insert falla, el horario anterior queda intacto.
-  const [, created] = await prisma.$transaction([
-    prisma.schedule.deleteMany({ where: { barberId } }),
-    prisma.schedule.createMany({
-      data: active.map((s) => ({ ...s, isActive: true, barberId })),
-    }),
-  ]);
+  // Reemplazo atómico: si algo falla, el horario anterior y las citas quedan intactos.
+  // Las citas futuras que queden fuera del nuevo turno se cancelan en la misma
+  // transacción y se avisa al cliente.
+  const { count, cancelled } = await prisma.$transaction(
+    async (tx) => {
+      await tx.schedule.deleteMany({ where: { barberId } });
+      const created = await tx.schedule.createMany({
+        data: active.map((s) => ({ ...s, isActive: true, barberId })),
+      });
 
-  return { count: created.count };
+      const upcoming = await tx.appointment.findMany({
+        where: { barberId, status: { in: ['PENDING', 'CONFIRMED'] }, startAt: { gt: new Date() } },
+        select: { id: true, startAt: true, endAt: true },
+      });
+      const outside = upcoming.filter((a) => {
+        const day = getZonedDayOfWeek(a.startAt);
+        return !isWithinRanges(active.filter((e) => e.dayOfWeek === day), a.startAt, a.endAt);
+      });
+
+      return { count: created.count, cancelled: await cancelAppointments(tx, outside.map((a) => a.id)) };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+
+  notifyCancelled(cancelled);
+  return { count, cancelled: cancelled.length };
+}
+
+/** Cancela las citas indicadas (si siguen activas) y devuelve las canceladas. */
+async function cancelAppointments(tx: Prisma.TransactionClient, ids: string[]) {
+  if (ids.length === 0) return [];
+  const rows = await tx.appointment.findMany({
+    where: { id: { in: ids }, status: { in: ['PENDING', 'CONFIRMED'] } },
+    select: APPOINTMENT_SELECT,
+  });
+  await tx.appointment.updateMany({
+    where: { id: { in: rows.map((r) => r.id) } },
+    data: { status: 'CANCELLED' },
+  });
+  return rows.map((r) => withAppointmentContact({ ...r, status: 'CANCELLED' as const }));
+}
+
+function notifyCancelled(appointments: Awaited<ReturnType<typeof cancelAppointments>>) {
+  for (const appt of appointments) {
+    notifications.notifyAppointmentCancelled(appt, 'BARBER').catch((err) => console.error('[email:cancelled]', err));
+  }
 }
 
 export async function listBlocks(
@@ -139,21 +180,28 @@ export async function createBlock(barberId: string, requesterId: string, request
     throw new AppError(400, 'Un bloqueo no puede durar más de un año');
   }
 
-  const block = await prisma.scheduleBlock.create({
-    data: { barberId, startAt, endAt, reason: input.reason || null },
-  });
-
-  // No cancelamos citas automáticamente: avisamos para que el barbero decida.
-  const conflicts = await prisma.appointment.count({
-    where: {
-      barberId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      startAt: { lt: endAt },
-      endAt: { gt: startAt },
+  // Crear el bloqueo y cancelar las citas futuras que caen dentro, de forma atómica.
+  const { block, cancelled } = await prisma.$transaction(
+    async (tx) => {
+      const block = await tx.scheduleBlock.create({
+        data: { barberId, startAt, endAt, reason: input.reason || null },
+      });
+      const affected = await tx.appointment.findMany({
+        where: {
+          barberId,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          startAt: { lt: endAt, gt: new Date() },
+          endAt: { gt: startAt },
+        },
+        select: { id: true },
+      });
+      return { block, cancelled: await cancelAppointments(tx, affected.map((a) => a.id)) };
     },
-  });
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 
-  return { block, conflicts };
+  notifyCancelled(cancelled);
+  return { block, cancelled: cancelled.length };
 }
 
 export async function deleteBlock(barberId: string, blockId: string, requesterId: string, requesterRole: string) {
