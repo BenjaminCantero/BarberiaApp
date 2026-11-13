@@ -1,5 +1,6 @@
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { withAppointmentContact } from '../lib/appointment-contact';
 import { AppError } from '../middlewares/error.middleware';
 import * as notifications from './notification.service';
 import { getZonedDayOfWeek, getZonedHHMM } from '../lib/timezone';
@@ -12,6 +13,9 @@ const APPOINTMENT_SELECT = {
   status: true,
   notes: true,
   createdAt: true,
+  guestName: true,
+  guestEmail: true,
+  guestPhone: true,
   client: { select: { id: true, name: true, email: true, phone: true } },
   barber: {
     select: {
@@ -23,7 +27,8 @@ const APPOINTMENT_SELECT = {
   review: { select: { id: true, rating: true } },
 };
 
-export async function createAppointment(clientId: string, data: CreateAppointmentInput) {
+export async function createAppointment(clientId: string | null, data: CreateAppointmentInput, guest?: { name: string; email: string; phone?: string }) {
+  if (!clientId && !guest) throw new AppError(400, 'Nombre y correo son obligatorios');
   const { barberId, serviceId, startAt: startAtStr, notes } = data;
 
   // Verificar barbero activo
@@ -36,6 +41,7 @@ export async function createAppointment(clientId: string, data: CreateAppointmen
     include: { service: true },
   });
   if (!barberService) throw new AppError(400, 'El barbero no ofrece este servicio');
+  if (barberService.service.isActive === false) throw new AppError(400, 'El servicio no está disponible');
 
   const startAt = new Date(startAtStr);
   if (startAt <= new Date()) throw new AppError(400, 'La cita debe ser en el futuro');
@@ -52,7 +58,7 @@ export async function createAppointment(clientId: string, data: CreateAppointmen
   if (!schedule) throw new AppError(400, 'El barbero no trabaja ese día');
 
   const endTimeStr = getZonedHHMM(endAt);
-  if (timeStr < schedule.startTime || endTimeStr > schedule.endTime) {
+  if (timeStr < schedule.startTime || endTimeStr > schedule.endTime || endAt.getTime() - startAt.getTime() >= 86_400_000 || endTimeStr <= timeStr) {
     throw new AppError(400, 'El horario solicitado está fuera del turno del barbero');
   }
 
@@ -75,7 +81,8 @@ export async function createAppointment(clientId: string, data: CreateAppointmen
         if (collision) throw new AppError(409, 'El horario ya está ocupado. Elige otro slot.');
 
         return tx.appointment.create({
-          data: { clientId, barberId, serviceId, startAt, endAt, notes },
+          data: { clientId, barberId, serviceId, startAt, endAt, notes,
+            guestName: guest?.name, guestEmail: guest?.email, guestPhone: guest?.phone },
           select: APPOINTMENT_SELECT,
         });
       },
@@ -91,9 +98,9 @@ export async function createAppointment(clientId: string, data: CreateAppointmen
   }
 
   // Notificar (no bloquea la respuesta si el email falla)
-  notifications.notifyAppointmentCreated(appointment).catch(() => undefined);
+  notifications.notifyAppointmentCreated(withAppointmentContact(appointment)).catch((err) => console.error('[email:booking]', err));
 
-  return appointment;
+  return withAppointmentContact(appointment);
 }
 
 export async function rescheduleAppointment(
@@ -146,7 +153,7 @@ export async function rescheduleAppointment(
     where: { barberId: appointment.barberId, dayOfWeek, isActive: true },
   });
   if (!schedule) throw new AppError(400, 'El barbero no trabaja ese día');
-  if (timeStr < schedule.startTime || endTimeStr > schedule.endTime) {
+  if (timeStr < schedule.startTime || endTimeStr > schedule.endTime || endTimeStr <= timeStr) {
     throw new AppError(400, 'El horario solicitado está fuera del turno del barbero');
   }
 
@@ -167,7 +174,7 @@ export async function rescheduleAppointment(
 
         return tx.appointment.update({
           where: { id },
-          data: { startAt, endAt },
+          data: { startAt, endAt, reminderSentAt: null },
           select: APPOINTMENT_SELECT,
         });
       },
@@ -180,9 +187,9 @@ export async function rescheduleAppointment(
     throw err;
   }
 
-  notifications.notifyAppointmentRescheduled(updated).catch(() => undefined);
+  notifications.notifyAppointmentRescheduled(withAppointmentContact(updated)).catch((err) => console.error('[email:reschedule]', err));
 
-  return updated;
+  return withAppointmentContact(updated);
 }
 
 export async function getMyAppointments(
@@ -208,11 +215,12 @@ export async function getMyAppointments(
     where.startAt = { gte: dayStart, lte: dayEnd };
   }
 
-  return prisma.appointment.findMany({
+  const appointments = await prisma.appointment.findMany({
     where,
     select: APPOINTMENT_SELECT,
     orderBy: { startAt: 'asc' },
   });
+  return appointments.map(withAppointmentContact);
 }
 
 export async function getAppointmentById(id: string, userId: string, role: string) {
@@ -233,7 +241,7 @@ export async function getAppointmentById(id: string, userId: string, role: strin
     }
   }
 
-  return appointment;
+  return withAppointmentContact(appointment);
 }
 
 export async function updateAppointmentStatus(
@@ -289,10 +297,10 @@ export async function updateAppointmentStatus(
   });
 
   if (newStatus === 'CONFIRMED') {
-    notifications.notifyAppointmentConfirmed(updated).catch(() => undefined);
+    notifications.notifyAppointmentConfirmed(withAppointmentContact(updated)).catch((err) => console.error('[email:confirmed]', err));
   } else if (newStatus === 'CANCELLED') {
-    notifications.notifyAppointmentCancelled(updated, role).catch(() => undefined);
+    notifications.notifyAppointmentCancelled(withAppointmentContact(updated), role).catch((err) => console.error('[email:cancelled]', err));
   }
 
-  return updated;
+  return withAppointmentContact(updated);
 }

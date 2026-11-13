@@ -66,6 +66,7 @@ export async function login(data: LoginInput) {
 
   const valid = await bcrypt.compare(data.password, user.passwordHash);
   if (!valid) throw new AppError(401, 'Credenciales inválidas');
+  if (!user.isActive) throw new AppError(403, 'La cuenta está desactivada');
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);
@@ -94,8 +95,11 @@ export async function refresh(token: string) {
 
   await revokeRefreshToken(token);
 
-  const newAccessToken = signAccessToken(payload);
-  const newRefreshToken = signRefreshToken(payload);
+  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  if (!user?.isActive) throw new AppError(401, 'La cuenta está desactivada');
+  const currentPayload = { userId: user.id, role: user.role };
+  const newAccessToken = signAccessToken(currentPayload);
+  const newRefreshToken = signRefreshToken(currentPayload);
   await saveRefreshToken(payload.userId, newRefreshToken);
 
   return { accessToken: newAccessToken, refreshToken: newRefreshToken };

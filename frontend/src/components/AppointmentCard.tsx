@@ -5,6 +5,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useUpdateAppointmentStatus, useRescheduleAppointment } from '../hooks/useAppointments';
 import { useCreateReview } from '../hooks/useReviews';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
+import { formatPrice } from '../lib/format';
 
 interface Props {
   appointment: Appointment;
@@ -83,7 +84,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
             {client.phone && <span className="text-slate-400"> · {client.phone}</span>}
           </p>
         )}
-        <p>Servicio: <span className="font-bold">{service.durationMin} min · <span className="text-brand-700">${service.price}</span></span></p>
+        <p>Servicio: <span className="font-bold">{service.durationMin} min · <span className="text-brand-700">{formatPrice(service.price)}</span></span></p>
         {notes && <p className="italic text-slate-400">"{notes}"</p>}
       </div>
 
@@ -116,7 +117,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
         </div>
       )}
 
-      {!isPast && status !== 'CANCELLED' && status !== 'COMPLETED' && (
+      {status !== 'CANCELLED' && status !== 'COMPLETED' && (viewAs !== 'CLIENT' || !isPast) && (
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
           {viewAs !== 'CLIENT' && status === 'PENDING' && (
             <button

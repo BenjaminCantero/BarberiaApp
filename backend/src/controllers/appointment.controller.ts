@@ -10,6 +10,15 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
   } catch (err) { next(err); }
 }
 
+export async function createGuest(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { name, email, phone, ...booking } = req.body;
+    const appointment = await appointmentService.createAppointment(null, booking, { name, email, phone });
+    // Public responses never expose staff email addresses or private client data.
+    res.status(201).json({ id: appointment.id, startAt: appointment.startAt, status: appointment.status });
+  } catch (err) { next(err); }
+}
+
 export async function listMine(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { status, date } = req.query as { status?: string; date?: string };

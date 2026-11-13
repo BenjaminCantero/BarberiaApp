@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { withAppointmentContact } from '../lib/appointment-contact';
 import { AppError } from '../middlewares/error.middleware';
 import type {
   ChangeRoleInput,
@@ -120,7 +121,7 @@ export async function listAllAppointments(query: AdminAppointmentQuery) {
     prisma.appointment.count({ where }),
   ]);
 
-  return { appointments, total, page, limit, pages: Math.ceil(total / limit) };
+  return { appointments: appointments.map(withAppointmentContact), total, page, limit, pages: Math.ceil(total / limit) };
 }
 
 export async function listAllServices() {

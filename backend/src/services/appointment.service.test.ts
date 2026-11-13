@@ -67,6 +67,22 @@ beforeEach(() => {
 // ─── createAppointment ───────────────────────────────────────────────────────
 
 describe('createAppointment', () => {
+  it('rechaza reservas sin cuenta ni contacto', async () => {
+    const err = await catchErr(() => createAppointment(null, { barberId: 'b1', serviceId: 's1', startAt: futureAt().toISOString() }));
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('reserva como invitado sin crear un usuario y conserva su contacto', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30, isActive: true } });
+    mockPrisma.schedule.findFirst.mockResolvedValue(OPEN_SCHEDULE);
+    mockPrisma.appointment.findFirst.mockResolvedValue(null);
+    mockPrisma.appointment.create.mockResolvedValue({ id: 'a1', client: null, guestName: 'Ana', guestEmail: 'ana@example.com', guestPhone: null });
+    const appointment = await createAppointment(null, { barberId: 'b1', serviceId: 's1', startAt: futureAt().toISOString() }, { name: 'Ana', email: 'ana@example.com' });
+    expect(appointment.client).toMatchObject({ name: 'Ana', email: 'ana@example.com' });
+    expect(mockPrisma.appointment.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ clientId: null, guestEmail: 'ana@example.com' }) }));
+  });
+
   const baseData = { barberId: 'b1', serviceId: 's1', startAt: futureAt().toISOString(), notes: '' };
 
   it('rechaza si el barbero no existe o está inactivo', async () => {

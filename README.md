@@ -4,6 +4,15 @@ Sistema de reserva de citas para barberías. Monorepo con **backend** (Express +
 
 ## Características
 
+- Reservas públicas sin cuenta: nombre, correo y teléfono opcional. Los datos se guardan en la cita; no se crea un usuario.
+- Avisos y recordatorios por correo para citas pendientes y confirmadas. Los cambios se coordinan directamente con la barbería.
+
+### Actualización: reservas sin cuenta
+
+Antes de arrancar una instalación existente, ejecutar `cd backend && npx prisma migrate deploy`.
+Configurar `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `FRONTEND_URL` y `SHOP_TIMEZONE` para recibir correos reales. Sin SMTP los intentos fallan y los recordatorios no se marcan como enviados, permitiendo reintentarlos al configurar el proveedor.
+La ruta pública `POST /api/appointments/guest` limita las solicitudes por IP; el resto de la gestión de citas sigue protegido.
+
 - Reserva de citas con cálculo de disponibilidad en tiempo real
 - Roles: cliente, barbero y administrador
 - Confirmación, cancelación y **reprogramación** de citas con reglas de negocio

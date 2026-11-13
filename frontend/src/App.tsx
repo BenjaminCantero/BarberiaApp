@@ -27,7 +27,7 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster richColors position="top-right" />
+      <Toaster richColors theme="dark" position="top-right" />
       <BrowserRouter>
         <AuthInitializer>
           <Routes>
@@ -40,11 +40,11 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/barbers" element={<Barbers />} />
             <Route path="/barbers/:id" element={<BarberProfile />} />
+            <Route path="/booking" element={<BookingPage />} />
 
             {/* Cliente */}
             <Route element={<ProtectedRoute allowedRoles={['CLIENT']} />}>
               <Route path="/dashboard/client" element={<ClientDashboard />} />
-              <Route path="/booking" element={<BookingPage />} />
             </Route>
 
             {/* Barbero */}

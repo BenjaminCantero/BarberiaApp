@@ -117,7 +117,10 @@ model Schedule {
 
 model Appointment {
   id        String            @id @default(uuid())
-  clientId  String            @map("client_id")
+  clientId  String?           @map("client_id")
+  guestName String?          @map("guest_name")
+  guestEmail String?         @map("guest_email")
+  guestPhone String?         @map("guest_phone")
   barberId  String            @map("barber_id")
   serviceId String            @map("service_id")
   startAt   DateTime          @map("start_at")
@@ -128,7 +131,7 @@ model Appointment {
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
-  client  User    @relation("ClientAppointments", fields: [clientId], references: [id])
+  client  User?   @relation("ClientAppointments", fields: [clientId], references: [id])
   barber  Barber  @relation(fields: [barberId], references: [id])
   service Service @relation(fields: [serviceId], references: [id])
   review  Review?

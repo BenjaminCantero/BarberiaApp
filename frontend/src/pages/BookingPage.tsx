@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useBarber } from '../hooks/useBarbers';
 import { useCreateAppointment } from '../hooks/useAppointments';
+import { formatPrice } from '../lib/format';
 
 function formatDatetime(iso: string): string {
   return new Date(iso).toLocaleString('es-ES', {
@@ -20,11 +21,15 @@ export function BookingPage() {
 
   const isValidUuid = (v: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-  const paramsValid = isValidUuid(barberId) && isValidUuid(serviceId) && !!startAt && !isNaN(Date.parse(startAt));
+  const paramsValid = isValidUuid(barberId) && /^[a-zA-Z0-9_-]{1,100}$/.test(serviceId) && !!startAt && !isNaN(Date.parse(startAt));
 
   const { data: barber, isLoading } = useBarber(barberId);
   const createAppointment = useCreateAppointment();
   const [notes, setNotes] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [booked, setBooked] = useState(false);
 
   const service = barber?.services.find((s) => s.service.id === serviceId)?.service;
 
@@ -37,12 +42,25 @@ export function BookingPage() {
     return raw?.response?.data?.message ?? 'Error al crear la reserva. El slot puede estar ocupado.';
   })();
 
-  const handleConfirm = () => {
+  const handleConfirm = (event: React.FormEvent) => {
+    event.preventDefault();
     createAppointment.mutate(
-      { barberId, serviceId, startAt, notes: notes || undefined },
-      { onSuccess: () => navigate('/dashboard/client?booked=1') },
+      { barberId, serviceId, startAt, notes: notes || undefined, name: name.trim(), email: email.trim(), phone: phone.trim() || undefined },
+      { onSuccess: () => setBooked(true) },
     );
   };
+
+  if (booked) return (
+    <div className="app-shell flex items-center justify-center px-4">
+      <main className="surface max-w-xl space-y-5 p-8" aria-live="polite">
+        <h1 className="text-3xl font-black">Reserva recibida</h1>
+        <p>Tu hora del {formatDatetime(startAt)} quedó pendiente de confirmación por el barbero.</p>
+        <p>Enviaremos los avisos y un recordatorio a <strong>{email}</strong>. Revisa también tu carpeta de spam. No necesitas crear una cuenta.</p>
+        <p className="text-sm text-slate-600">Para cancelar o cambiar tu hora, contacta directamente a la barbería{barber?.user.phone ? ` al ${barber.user.phone}` : ''}.</p>
+        <Link to="/barbers" className="btn-primary">Volver a los barberos</Link>
+      </main>
+    </div>
+  );
 
   if (!paramsValid) {
     return (
@@ -69,20 +87,21 @@ export function BookingPage() {
       </nav>
 
       <main className="mx-auto max-w-xl px-4 py-12">
-        <div className="surface space-y-6 p-6 sm:p-8">
+        <form onSubmit={handleConfirm} className="surface space-y-6 p-6 sm:p-8">
           <div>
-            <p className="section-eyebrow">Último paso</p>
             <h1 className="mt-2 text-3xl font-black text-slate-950">Confirma tu cita</h1>
+            <p className="mt-2 text-slate-600">Reserva sin cuenta. Usaremos tu correo para los avisos de esta cita y su recordatorio.</p>
           </div>
 
           {isLoading && <p className="text-slate-400">Cargando detalles...</p>}
+          {!isLoading && (!barber || !service) && <p role="alert">No se pudo cargar el servicio. <Link to="/barbers" className="underline">Elige otro horario</Link>.</p>}
 
           {barber && service && (
             <>
               {/* Resumen */}
               <div className="space-y-4">
                 <div className="flex items-center gap-4 rounded-lg bg-slate-50 p-4">
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-slate-950 text-lg font-black text-brand-300">
+                  <div className="team-initials !h-12 !w-12 !text-base" aria-hidden="true">
                     {barber.user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                   </div>
                   <div>
@@ -99,7 +118,7 @@ export function BookingPage() {
                   </div>
                   <div className="rounded-lg bg-slate-50 p-4">
                     <p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Precio</p>
-                    <p className="text-2xl font-black text-brand-700">${service.price}</p>
+                    <p className="text-2xl font-black text-brand-700">{formatPrice(service.price)}</p>
                   </div>
                 </div>
 
@@ -115,11 +134,17 @@ export function BookingPage() {
               </div>
 
               {/* Notas opcionales */}
+              <div className="space-y-4">
+                <div><label htmlFor="booking-name" className="mb-2 block font-bold">Nombre</label><input id="booking-name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(e) => setName(e.target.value)} className="input-field" /></div>
+                <div><label htmlFor="booking-email" className="mb-2 block font-bold">Correo electrónico</label><input id="booking-email" type="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" /><p className="mt-1 text-sm text-slate-600">Comprueba que esté correcto para recibir el recordatorio.</p></div>
+                <div><label htmlFor="booking-phone" className="mb-2 block font-bold">Teléfono (opcional)</label><input id="booking-phone" type="tel" autoComplete="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" /></div>
+              </div>
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">
+                <label htmlFor="booking-notes" className="mb-2 block text-sm font-bold text-slate-700">
                   Notas para el barbero (opcional)
                 </label>
                 <textarea
+                  id="booking-notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
@@ -137,7 +162,7 @@ export function BookingPage() {
               )}
 
               <button
-                onClick={handleConfirm}
+                type="submit"
                 disabled={createAppointment.isPending}
                 className="btn-primary w-full text-base"
               >
@@ -145,11 +170,11 @@ export function BookingPage() {
               </button>
 
               <p className="text-center text-xs text-slate-400">
-                La cita quedará pendiente de confirmación por el barbero. Podrás cancelarla hasta 2 horas antes.
+                La cita quedará pendiente de confirmación. Para cambios o cancelaciones, contacta a la barbería.
               </p>
             </>
           )}
-        </div>
+        </form>
       </main>
     </div>
   );

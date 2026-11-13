@@ -1,4 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import { prisma } from './prisma';
 
 interface TokenPayload {
@@ -12,7 +13,7 @@ export function signAccessToken(payload: TokenPayload): string {
 }
 
 export function signRefreshToken(payload: TokenPayload): string {
-  const options: SignOptions = { expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'] };
+  const options: SignOptions = { jwtid: randomUUID(), expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'] };
   return jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, options);
 }
 

@@ -9,13 +9,16 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   createdAt: string;
-  client: { id: string; name: string; email: string; phone?: string };
+  client: { id: string | null; name: string; email: string; phone?: string | null };
   barber: { id: string; user: { name: string; email: string; phone?: string } };
   service: { id: string; name: string; durationMin: number; price: string };
   review?: { id: string; rating: number } | null;
 }
 
 export interface CreateAppointmentPayload {
+  name: string;
+  email: string;
+  phone?: string;
   barberId: string;
   serviceId: string;
   startAt: string;
@@ -24,7 +27,7 @@ export interface CreateAppointmentPayload {
 
 export const appointmentApi = {
   create: (data: CreateAppointmentPayload) =>
-    api.post<Appointment>('/appointments', data),
+    api.post<{ id: string; startAt: string; status: AppointmentStatus }>('/appointments/guest', data),
 
   listMine: (params?: { status?: AppointmentStatus; date?: string }) =>
     api.get<Appointment[]>('/appointments/my', { params }),

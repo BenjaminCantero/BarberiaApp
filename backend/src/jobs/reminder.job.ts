@@ -1,16 +1,20 @@
 import { prisma } from '../lib/prisma';
+import { withAppointmentContact } from '../lib/appointment-contact';
 import * as notifications from '../services/notification.service';
 
 const REMINDER_SELECT = {
   id: true,
   startAt: true,
+  guestName: true,
+  guestEmail: true,
+  guestPhone: true,
   client: { select: { name: true, email: true } },
   barber: { select: { user: { select: { name: true, email: true } } } },
   service: { select: { name: true } },
 };
 
 /**
- * Envía recordatorios a las citas CONFIRMED que comienzan dentro de las
+ * Envía recordatorios a las citas PENDING/CONFIRMED que comienzan dentro de las
  * próximas `windowHours` horas y que todavía no recibieron recordatorio.
  * Marca `reminderSentAt` para no duplicar envíos.
  */
@@ -20,7 +24,7 @@ export async function runReminderSweep(windowHours = 24): Promise<number> {
 
   const pending = await prisma.appointment.findMany({
     where: {
-      status: 'CONFIRMED',
+      status: { in: ['PENDING', 'CONFIRMED'] },
       reminderSentAt: null,
       startAt: { gte: now, lte: until },
     },
@@ -30,7 +34,7 @@ export async function runReminderSweep(windowHours = 24): Promise<number> {
   let sent = 0;
   for (const appt of pending) {
     try {
-      await notifications.notifyAppointmentReminder(appt);
+      await notifications.notifyAppointmentReminder(withAppointmentContact(appt));
       await prisma.appointment.update({
         where: { id: appt.id },
         data: { reminderSentAt: new Date() },

@@ -37,7 +37,7 @@ async function send(to: string, subject: string, html: string): Promise<void> {
   if (!tx) {
     // Modo desarrollo / sin SMTP: dejamos rastro en consola.
     console.log(`[email:skipped] → ${to} | ${subject}`);
-    return;
+    throw new Error('SMTP no configurado: el correo no fue enviado');
   }
   await tx.sendMail({ from: `${SHOP_NAME} <${FROM}>`, to, subject, html });
 }
@@ -52,6 +52,16 @@ function formatDate(date: Date | string): string {
     minute: '2-digit',
     timeZone: SHOP_TIMEZONE,
   }).format(d);
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
+}
+
+function safeAppointment(appt: AppointmentForEmail): AppointmentForEmail {
+  return { ...appt, client: { ...appt.client, name: escapeHtml(appt.client.name) },
+    barber: { user: { ...appt.barber.user, name: escapeHtml(appt.barber.user.name) } },
+    service: { name: escapeHtml(appt.service.name) } };
 }
 
 // Forma mínima de la cita que necesitan las notificaciones.
@@ -73,6 +83,7 @@ function layout(title: string, body: string): string {
 }
 
 export async function notifyAppointmentCreated(appt: AppointmentForEmail): Promise<void> {
+  appt = safeAppointment(appt);
   const when = formatDate(appt.startAt);
   // Al cliente
   await send(
@@ -103,6 +114,7 @@ export async function notifyAppointmentCreated(appt: AppointmentForEmail): Promi
 }
 
 export async function notifyAppointmentConfirmed(appt: AppointmentForEmail): Promise<void> {
+  appt = safeAppointment(appt);
   await send(
     appt.client.email,
     `Tu cita en ${SHOP_NAME} fue confirmada`,
@@ -122,6 +134,7 @@ export async function notifyAppointmentCancelled(
   appt: AppointmentForEmail,
   cancelledByRole: string,
 ): Promise<void> {
+  appt = safeAppointment(appt);
   const when = formatDate(appt.startAt);
   // Avisamos a la otra parte de la que canceló.
   if (cancelledByRole === 'CLIENT') {
@@ -149,6 +162,7 @@ export async function notifyAppointmentCancelled(
 }
 
 export async function notifyAppointmentRescheduled(appt: AppointmentForEmail): Promise<void> {
+  appt = safeAppointment(appt);
   const when = formatDate(appt.startAt);
   await send(
     appt.client.email,
@@ -208,9 +222,10 @@ export async function sendEmailVerificationEmail(
 
 /** Recordatorio enviado por el job programado (ver reminder.job.ts). */
 export async function notifyAppointmentReminder(appt: AppointmentForEmail): Promise<void> {
+  appt = safeAppointment(appt);
   await send(
     appt.client.email,
-    `Recordatorio: tu cita en ${SHOP_NAME} es mañana`,
+    `Recordatorio de tu próxima cita en ${SHOP_NAME}`,
     layout('Recordatorio de cita ⏰', `
       <p>Hola <strong>${appt.client.name}</strong>,</p>
       <p>Te recordamos tu próxima cita:</p>
@@ -219,6 +234,6 @@ export async function notifyAppointmentReminder(appt: AppointmentForEmail): Prom
         <li><strong>Barbero:</strong> ${appt.barber.user.name}</li>
         <li><strong>Fecha y hora:</strong> ${formatDate(appt.startAt)}</li>
       </ul>
-      <p>Si no podés asistir, cancelá o reprogramá con anticipación.</p>`),
+      <p>Si no puedes asistir, contacta directamente a la barbería para cancelar o cambiar tu hora.</p>`),
   );
 }

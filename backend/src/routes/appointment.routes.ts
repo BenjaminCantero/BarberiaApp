@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import { guestAppointmentSchema } from '../schemas/appointment.schema';
 import * as appointmentController from '../controllers/appointment.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -10,6 +12,9 @@ import {
 } from '../schemas/appointment.schema';
 
 const router = Router();
+
+router.post('/guest', rateLimit({ windowMs: 60 * 60 * 1000, limit: 10 }),
+  validate(guestAppointmentSchema), appointmentController.createGuest);
 
 // Todas las rutas de citas requieren autenticación
 router.use(authenticate);
