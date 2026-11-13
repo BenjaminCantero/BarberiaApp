@@ -8,7 +8,8 @@ const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
     barber: { findUnique: vi.fn() },
     barberService: { findUnique: vi.fn() },
-    schedule: { findFirst: vi.fn() },
+    schedule: { findMany: vi.fn() },
+    scheduleBlock: { findFirst: vi.fn() },
     service: { findUnique: vi.fn() },
     appointment: {
       findUnique: vi.fn(),
@@ -30,10 +31,12 @@ vi.mock('./notification.service', () => ({
   notifyAppointmentCancelled: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { zonedWallTimeToUtc, getZonedDateStr } from '../lib/timezone';
 import {
   createAppointment,
   rescheduleAppointment,
   updateAppointmentStatus,
+  getMyAppointments,
 } from './appointment.service';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Restaurar la implementación de $transaction tras clearAllMocks.
   mockPrisma.$transaction.mockImplementation((cb: (tx: unknown) => unknown) => cb(mockPrisma));
+  mockPrisma.scheduleBlock.findFirst.mockResolvedValue(null);
 });
 
 // ─── createAppointment ───────────────────────────────────────────────────────
@@ -75,7 +79,7 @@ describe('createAppointment', () => {
   it('reserva como invitado sin crear un usuario y conserva su contacto', async () => {
     mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
     mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30, isActive: true } });
-    mockPrisma.schedule.findFirst.mockResolvedValue(OPEN_SCHEDULE);
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
     mockPrisma.appointment.findFirst.mockResolvedValue(null);
     mockPrisma.appointment.create.mockResolvedValue({ id: 'a1', client: null, guestName: 'Ana', guestEmail: 'ana@example.com', guestPhone: null });
     const appointment = await createAppointment(null, { barberId: 'b1', serviceId: 's1', startAt: futureAt().toISOString() }, { name: 'Ana', email: 'ana@example.com' });
@@ -111,7 +115,7 @@ describe('createAppointment', () => {
   it('rechaza si el barbero no trabaja ese día', async () => {
     mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
     mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
-    mockPrisma.schedule.findFirst.mockResolvedValue(null);
+    mockPrisma.schedule.findMany.mockResolvedValue([]);
     const err = await catchErr(() => createAppointment('c1', baseData));
     expect(err.statusCode).toBe(400);
     expect(err.message).toMatch(/no trabaja/i);
@@ -120,7 +124,7 @@ describe('createAppointment', () => {
   it('rechaza un horario fuera del turno del barbero', async () => {
     mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
     mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
-    mockPrisma.schedule.findFirst.mockResolvedValue({ startTime: '09:00', endTime: '10:00', isActive: true });
+    mockPrisma.schedule.findMany.mockResolvedValue([{ startTime: '09:00', endTime: '10:00', isActive: true }]);
     const err = await catchErr(() =>
       createAppointment('c1', { ...baseData, startAt: futureAt(23).toISOString() }),
     );
@@ -131,17 +135,70 @@ describe('createAppointment', () => {
   it('rechaza con 409 si el slot ya está ocupado (colisión)', async () => {
     mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
     mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
-    mockPrisma.schedule.findFirst.mockResolvedValue(OPEN_SCHEDULE);
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
     mockPrisma.appointment.findFirst.mockResolvedValue({ id: 'existing' }); // hay colisión
     const err = await catchErr(() => createAppointment('c1', baseData));
     expect(err.statusCode).toBe(409);
     expect(mockPrisma.appointment.create).not.toHaveBeenCalled();
   });
 
+  it('rechaza una cita que cae en la pausa entre dos tramos del día', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
+    mockPrisma.schedule.findMany.mockResolvedValue([
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '15:00', endTime: '19:00' },
+    ]);
+    const day = getZonedDateStr(futureAt());
+    const lunch = zonedWallTimeToUtc(day, '13:30').toISOString();
+    const err = await catchErr(() => createAppointment('c1', { ...baseData, startAt: lunch }));
+    expect(err.statusCode).toBe(400);
+    expect(err.message).toMatch(/fuera del turno/i);
+  });
+
+  it('rechaza una cita que empieza en un tramo y termina en la pausa', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 60 } });
+    mockPrisma.schedule.findMany.mockResolvedValue([
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '15:00', endTime: '19:00' },
+    ]);
+    const day = getZonedDateStr(futureAt());
+    const err = await catchErr(() =>
+      createAppointment('c1', { ...baseData, startAt: zonedWallTimeToUtc(day, '12:30').toISOString() }),
+    );
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('acepta una cita en el segundo tramo del día', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
+    mockPrisma.schedule.findMany.mockResolvedValue([
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '15:00', endTime: '19:00' },
+    ]);
+    mockPrisma.appointment.findFirst.mockResolvedValue(null);
+    mockPrisma.appointment.create.mockResolvedValue({ id: 'new', client: { email: 'x' }, barber: { user: {} }, service: {} });
+    const day = getZonedDateStr(futureAt());
+    const result = await createAppointment('c1', { ...baseData, startAt: zonedWallTimeToUtc(day, '15:00').toISOString() });
+    expect(result).toMatchObject({ id: 'new' });
+  });
+
+  it('rechaza con 409 si el barbero bloqueó ese horario', async () => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+    mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
+    mockPrisma.scheduleBlock.findFirst.mockResolvedValue({ id: 'blk' });
+    const err = await catchErr(() => createAppointment('c1', baseData));
+    expect(err.statusCode).toBe(409);
+    expect(err.message).toMatch(/no atiende/i);
+    expect(mockPrisma.appointment.create).not.toHaveBeenCalled();
+  });
+
   it('crea la cita cuando no hay colisión', async () => {
     mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
     mockPrisma.barberService.findUnique.mockResolvedValue({ service: { durationMin: 30 } });
-    mockPrisma.schedule.findFirst.mockResolvedValue(OPEN_SCHEDULE);
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
     mockPrisma.appointment.findFirst.mockResolvedValue(null); // sin colisión
     mockPrisma.appointment.create.mockResolvedValue({ id: 'new', client: { email: 'x' }, barber: { user: {} }, service: {} });
 
@@ -202,8 +259,20 @@ describe('rescheduleAppointment', () => {
       id: 'a1', clientId: 'c1', barberId: 'b1', serviceId: 's1', status: 'CONFIRMED', startAt: futureAt(),
     });
     mockPrisma.service.findUnique.mockResolvedValue({ durationMin: 30 });
-    mockPrisma.schedule.findFirst.mockResolvedValue(OPEN_SCHEDULE);
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
     mockPrisma.appointment.findFirst.mockResolvedValue({ id: 'other' }); // colisión
+    const err = await catchErr(() => rescheduleAppointment('a1', 'c1', 'CLIENT', newStart));
+    expect(err.statusCode).toBe(409);
+    expect(mockPrisma.appointment.update).not.toHaveBeenCalled();
+  });
+
+  it('409 si el nuevo horario cae en un bloqueo', async () => {
+    mockPrisma.appointment.findUnique.mockResolvedValue({
+      id: 'a1', clientId: 'c1', barberId: 'b1', serviceId: 's1', status: 'CONFIRMED', startAt: futureAt(),
+    });
+    mockPrisma.service.findUnique.mockResolvedValue({ durationMin: 30 });
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
+    mockPrisma.scheduleBlock.findFirst.mockResolvedValue({ id: 'blk' });
     const err = await catchErr(() => rescheduleAppointment('a1', 'c1', 'CLIENT', newStart));
     expect(err.statusCode).toBe(409);
     expect(mockPrisma.appointment.update).not.toHaveBeenCalled();
@@ -214,7 +283,7 @@ describe('rescheduleAppointment', () => {
       id: 'a1', clientId: 'c1', barberId: 'b1', serviceId: 's1', status: 'CONFIRMED', startAt: futureAt(),
     });
     mockPrisma.service.findUnique.mockResolvedValue({ durationMin: 30 });
-    mockPrisma.schedule.findFirst.mockResolvedValue(OPEN_SCHEDULE);
+    mockPrisma.schedule.findMany.mockResolvedValue([OPEN_SCHEDULE]);
     mockPrisma.appointment.findFirst.mockResolvedValue(null); // sin colisión
     mockPrisma.appointment.update.mockResolvedValue({ id: 'a1', client: { email: 'x' }, barber: { user: {} }, service: {} });
 
@@ -264,5 +333,38 @@ describe('updateAppointmentStatus', () => {
     expect(mockPrisma.appointment.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: 'CONFIRMED' } }),
     );
+  });
+});
+
+// ─── getMyAppointments ───────────────────────────────────────────────────────
+
+describe('getMyAppointments', () => {
+  beforeEach(() => {
+    mockPrisma.barber.findUnique.mockResolvedValue({ id: 'b1' });
+    mockPrisma.appointment.findMany.mockResolvedValue([]);
+  });
+
+  it('corta el día en la medianoche de la barbería, no la del servidor', async () => {
+    await getMyAppointments('u1', 'BARBER', { date: '2026-06-14' });
+    const where = mockPrisma.appointment.findMany.mock.calls[0][0].where;
+    expect(where.barberId).toBe('b1');
+    expect(where.startAt).toEqual({
+      gte: zonedWallTimeToUtc('2026-06-14', '00:00'),
+      lt: zonedWallTimeToUtc('2026-06-15', '00:00'),
+    });
+  });
+
+  it('acepta un rango from/to para la vista semanal', async () => {
+    await getMyAppointments('u1', 'BARBER', { from: '2026-06-15', to: '2026-06-21' });
+    const where = mockPrisma.appointment.findMany.mock.calls[0][0].where;
+    expect(where.startAt).toEqual({
+      gte: zonedWallTimeToUtc('2026-06-15', '00:00'),
+      lt: zonedWallTimeToUtc('2026-06-22', '00:00'),
+    });
+  });
+
+  it('rechaza rangos invertidos', async () => {
+    const err = await catchErr(() => getMyAppointments('u1', 'BARBER', { from: '2026-06-21', to: '2026-06-15' }));
+    expect(err.statusCode).toBe(400);
   });
 });

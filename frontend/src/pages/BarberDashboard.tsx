@@ -1,36 +1,22 @@
 import { useState, useRef } from 'react';
 import { AppNavbar } from '../components/AppNavbar';
 import { useAuthStore } from '../store/auth.store';
-import { useMyBarber, useBarberSchedule, useSetSchedule } from '../hooks/useBarbers';
+import { useMyBarber, useBarberSchedule } from '../hooks/useBarbers';
 import { useMyAppointments } from '../hooks/useAppointments';
-import { AppointmentCard } from '../components/AppointmentCard';
+import { BarberAgenda } from '../components/BarberAgenda';
+import { ScheduleEditor } from '../components/ScheduleEditor';
+import { ScheduleBlocks } from '../components/ScheduleBlocks';
 import { useCertificates, useUploadCertificate, useDeleteCertificate } from '../hooks/useCertificates';
 import { PortfolioManager } from '../components/PortfolioManager';
 import { BarberProfileForm } from '../components/BarberProfileForm';
-
-const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-function localDateStr(d: Date = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 export function BarberDashboard() {
   const { user } = useAuthStore();
 
   const { data: myBarber, isLoading: loadingBarber } = useMyBarber();
-  const { data: schedule } = useBarberSchedule(myBarber?.id ?? '');
-  const setScheduleMutation = useSetSchedule(myBarber?.id ?? '');
-
-  const [selectedDate, setSelectedDate] = useState(localDateStr());
-  const { data: appointments, isLoading: loadingAppts } = useMyAppointments({ date: selectedDate });
-
-  const [editSchedule, setEditSchedule] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState(
-    [1, 2, 3, 4, 5].map((day) => ({ dayOfWeek: day, startTime: '09:00', endTime: '18:00', isActive: true })),
-  );
+  const { data: schedule, isLoading: loadingSchedule } = useBarberSchedule(myBarber?.id ?? '');
+  // Pendientes por confirmar (de hoy en adelante, cualquier día).
+  const { data: pending } = useMyAppointments({ status: 'PENDING' });
   const [activeTab, setActiveTab] = useState<'agenda' | 'portfolio' | 'profile' | 'schedule' | 'services' | 'certificates'>('agenda');
 
   // Certificados
@@ -43,38 +29,7 @@ export function BarberDashboard() {
   const [certFile, setCertFile] = useState<File | null>(null);
   const [certMsg, setCertMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const handleOpenSchedule = () => {
-    if (schedule && schedule.length > 0) {
-      setScheduleForm(schedule.map((s) => ({
-        dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime, isActive: s.isActive,
-      })));
-    }
-    setEditSchedule(true);
-  };
-
-  const handleSaveSchedule = () => {
-    setScheduleMutation.mutate(
-      scheduleForm.filter((s) => s.isActive),
-      { onSuccess: () => setEditSchedule(false) },
-    );
-  };
-
-  const updateEntry = (day: number, field: string, value: string | boolean) =>
-    setScheduleForm((prev) => prev.map((e) => (e.dayOfWeek === day ? { ...e, [field]: value } : e)));
-
-  const toggleDay = (day: number) => {
-    const exists = scheduleForm.find((s) => s.dayOfWeek === day);
-    if (exists) {
-      setScheduleForm((prev) => prev.filter((s) => s.dayOfWeek !== day));
-    } else {
-      setScheduleForm((prev) =>
-        [...prev, { dayOfWeek: day, startTime: '09:00', endTime: '18:00', isActive: true }]
-          .sort((a, b) => a.dayOfWeek - b.dayOfWeek),
-      );
-    }
-  };
-
-  const pendingCount = appointments?.filter((a) => a.status === 'PENDING').length ?? 0;
+  const pendingCount = pending?.filter((a) => new Date(a.endAt) > new Date()).length ?? 0;
 
   return (
     <div className="app-shell">
@@ -109,112 +64,18 @@ export function BarberDashboard() {
         </div>
 
         {/* AGENDA */}
-        {activeTab === 'agenda' && (
-          <div className="space-y-5">
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-bold text-slate-700">Fecha:</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="input-field max-w-xs"
-              />
-            </div>
-
-            {loadingAppts && (
-              <div className="space-y-3">
-                {[1, 2].map((i) => (
-                  <div key={i} className="panel animate-pulse p-5 h-28" />
-                ))}
-              </div>
-            )}
-
-            {!loadingAppts && (!appointments || appointments.length === 0) && (
-              <div className="panel p-10 text-center">
-                <p className="text-3xl mb-3">📭</p>
-                <p className="font-bold text-slate-600">Sin citas este día</p>
-              </div>
-            )}
-
-            {!loadingAppts && appointments && appointments.length > 0 && (
-              <div className="space-y-4">
-                {appointments.map((appt) => (
-                  <AppointmentCard key={appt.id} appointment={appt} viewAs="BARBER" />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === 'agenda' && myBarber && <BarberAgenda barberId={myBarber.id} schedule={schedule} />}
+        {activeTab === 'agenda' && loadingBarber && <div className="panel h-28 animate-pulse" />}
 
         {/* HORARIO */}
-        {activeTab === 'schedule' && (
-          <div className="panel p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-black text-slate-900">Horario semanal</h2>
-              {!editSchedule && (
-                <button onClick={handleOpenSchedule} className="text-sm font-bold text-brand-700 hover:underline">
-                  Editar
-                </button>
-              )}
-            </div>
-
-            {loadingBarber && <p className="text-sm text-slate-400">Cargando horario...</p>}
-
-            {!editSchedule && !loadingBarber && (
-              schedule && schedule.length > 0 ? (
-                <div className="space-y-1">
-                  {schedule.filter((s) => s.isActive).map((s) => (
-                    <div key={s.id} className="flex justify-between py-2 border-b border-slate-50 last:border-0 text-sm">
-                      <span className="font-medium text-slate-600">{DAY_NAMES[s.dayOfWeek]}</span>
-                      <span className="font-black text-slate-900">{s.startTime} – {s.endTime}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">Sin horario. Configúralo para empezar a recibir citas.</p>
-              )
-            )}
-
-            {editSchedule && (
-              <div className="space-y-2">
-                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
-                  const entry = scheduleForm.find((s) => s.dayOfWeek === day);
-                  return (
-                    <div key={day} className="flex flex-wrap items-center gap-4 border-b border-slate-50 py-2 last:border-0">
-                      <label className="flex w-28 cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={!!entry}
-                          onChange={() => toggleDay(day)}
-                          className="h-4 w-4 accent-brand-600"
-                        />
-                        <span className="text-sm font-bold text-slate-700">{DAY_NAMES[day]}</span>
-                      </label>
-                      {entry && (
-                        <>
-                          <input type="time" value={entry.startTime}
-                            onChange={(e) => updateEntry(day, 'startTime', e.target.value)}
-                            className="rounded border border-slate-300 px-2 py-1 text-sm" />
-                          <span className="text-slate-400 text-sm">a</span>
-                          <input type="time" value={entry.endTime}
-                            onChange={(e) => updateEntry(day, 'endTime', e.target.value)}
-                            className="rounded border border-slate-300 px-2 py-1 text-sm" />
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-                <div className="flex gap-3 pt-3">
-                  <button onClick={handleSaveSchedule} disabled={setScheduleMutation.isPending}
-                    className="btn-brand px-5">
-                    {setScheduleMutation.isPending ? 'Guardando...' : 'Guardar'}
-                  </button>
-                  <button onClick={() => setEditSchedule(false)} className="text-sm font-bold text-slate-500 hover:text-slate-700">
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
+        {activeTab === 'schedule' && myBarber && (
+          <div className="space-y-6">
+            <ScheduleEditor
+              barberId={myBarber.id}
+              schedule={schedule}
+              loading={loadingSchedule}
+            />
+            <ScheduleBlocks barberId={myBarber.id} />
           </div>
         )}
 

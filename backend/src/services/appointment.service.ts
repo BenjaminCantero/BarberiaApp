@@ -3,7 +3,8 @@ import { prisma } from '../lib/prisma';
 import { withAppointmentContact } from '../lib/appointment-contact';
 import { AppError } from '../middlewares/error.middleware';
 import * as notifications from './notification.service';
-import { getZonedDayOfWeek, getZonedHHMM } from '../lib/timezone';
+import { zonedDayRange } from '../lib/timezone';
+import { assertSlotFree, assertWithinSchedule } from './availability.service';
 import type { CreateAppointmentInput } from '../schemas/appointment.schema';
 
 const APPOINTMENT_SELECT = {
@@ -48,37 +49,17 @@ export async function createAppointment(clientId: string | null, data: CreateApp
 
   const endAt = new Date(startAt.getTime() + barberService.service.durationMin * 60_000);
 
-  // Verificar que el barbero esté en horario ese día (en la zona de la barbería)
-  const dayOfWeek = getZonedDayOfWeek(startAt);
-  const timeStr = getZonedHHMM(startAt); // "HH:MM"
+  await assertWithinSchedule(barberId, startAt, endAt);
 
-  const schedule = await prisma.schedule.findFirst({
-    where: { barberId, dayOfWeek, isActive: true },
-  });
-  if (!schedule) throw new AppError(400, 'El barbero no trabaja ese día');
-
-  const endTimeStr = getZonedHHMM(endAt);
-  if (timeStr < schedule.startTime || endTimeStr > schedule.endTime || endAt.getTime() - startAt.getTime() >= 86_400_000 || endTimeStr <= timeStr) {
-    throw new AppError(400, 'El horario solicitado está fuera del turno del barbero');
-  }
-
-  // Verificar colisión y crear de forma ATÓMICA para evitar dobles reservas
-  // bajo concurrencia (dos clientes pidiendo el mismo slot a la vez).
+  // Verificar colisión (citas y bloqueos) y crear de forma ATÓMICA para evitar
+  // dobles reservas bajo concurrencia (dos clientes pidiendo el mismo slot).
   // El nivel Serializable garantiza que dos transacciones simultáneas que
-  // lean el mismo rango de citas no puedan ambas confirmar e insertar.
+  // lean el mismo rango no puedan ambas confirmar e insertar.
   let appointment;
   try {
     appointment = await prisma.$transaction(
       async (tx) => {
-        const collision = await tx.appointment.findFirst({
-          where: {
-            barberId,
-            status: { in: ['PENDING', 'CONFIRMED'] },
-            AND: [{ startAt: { lt: endAt } }, { endAt: { gt: startAt } }],
-          },
-          select: { id: true },
-        });
-        if (collision) throw new AppError(409, 'El horario ya está ocupado. Elige otro slot.');
+        await assertSlotFree(tx, barberId, startAt, endAt);
 
         return tx.appointment.create({
           data: { clientId, barberId, serviceId, startAt, endAt, notes,
@@ -145,32 +126,13 @@ export async function rescheduleAppointment(
   if (startAt <= new Date()) throw new AppError(400, 'La cita debe ser en el futuro');
   const endAt = new Date(startAt.getTime() + service.durationMin * 60_000);
 
-  // Validar que el nuevo horario esté dentro del turno del barbero (zona de la barbería)
-  const dayOfWeek = getZonedDayOfWeek(startAt);
-  const timeStr = getZonedHHMM(startAt);
-  const endTimeStr = getZonedHHMM(endAt);
-  const schedule = await prisma.schedule.findFirst({
-    where: { barberId: appointment.barberId, dayOfWeek, isActive: true },
-  });
-  if (!schedule) throw new AppError(400, 'El barbero no trabaja ese día');
-  if (timeStr < schedule.startTime || endTimeStr > schedule.endTime || endTimeStr <= timeStr) {
-    throw new AppError(400, 'El horario solicitado está fuera del turno del barbero');
-  }
+  await assertWithinSchedule(appointment.barberId, startAt, endAt);
 
   let updated;
   try {
     updated = await prisma.$transaction(
       async (tx) => {
-        const collision = await tx.appointment.findFirst({
-          where: {
-            barberId: appointment.barberId,
-            id: { not: id },
-            status: { in: ['PENDING', 'CONFIRMED'] },
-            AND: [{ startAt: { lt: endAt } }, { endAt: { gt: startAt } }],
-          },
-          select: { id: true },
-        });
-        if (collision) throw new AppError(409, 'El horario ya está ocupado. Elige otro slot.');
+        await assertSlotFree(tx, appointment.barberId, startAt, endAt, id);
 
         return tx.appointment.update({
           where: { id },
@@ -195,7 +157,7 @@ export async function rescheduleAppointment(
 export async function getMyAppointments(
   userId: string,
   role: string,
-  filters: { status?: AppointmentStatus; date?: string },
+  filters: { status?: AppointmentStatus; date?: string; from?: string; to?: string },
 ) {
   const where: Record<string, unknown> = {};
 
@@ -209,10 +171,17 @@ export async function getMyAppointments(
 
   if (filters.status) where.status = filters.status;
 
-  if (filters.date) {
-    const dayStart = new Date(`${filters.date}T00:00:00`);
-    const dayEnd = new Date(`${filters.date}T23:59:59`);
-    where.startAt = { gte: dayStart, lte: dayEnd };
+  // Los días se cortan en la medianoche de la barbería, no en la del servidor
+  // (que en Docker/Vercel es UTC y movía citas de la noche al día siguiente).
+  const from = filters.date ?? filters.from;
+  const to = filters.date ?? filters.to ?? filters.from;
+  if (from && to) {
+    if (to < from) throw new AppError(400, 'La fecha final debe ser posterior a la inicial');
+    const { start, end } = zonedDayRange(from, to);
+    if (end.getTime() - start.getTime() > 62 * 86_400_000) {
+      throw new AppError(400, 'El rango máximo es de 62 días');
+    }
+    where.startAt = { gte: start, lt: end };
   }
 
   const appointments = await prisma.appointment.findMany({

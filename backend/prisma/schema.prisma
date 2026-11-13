@@ -67,6 +67,7 @@ model Barber {
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   services     BarberService[]
   schedules    Schedule[]
+  blocks       ScheduleBlock[]
   appointments Appointment[]
   certificates Certificate[]
   reviews      Review[]
@@ -140,7 +141,24 @@ model Schedule {
 
   barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
 
+  @@index([barberId, dayOfWeek])
   @@map("schedules")
+}
+
+/// Tiempo en que el barbero no atiende fuera de su horario semanal
+/// (vacaciones, día libre, trámite de unas horas). Rango [startAt, endAt).
+model ScheduleBlock {
+  id        String   @id @default(uuid())
+  barberId  String   @map("barber_id")
+  startAt   DateTime @map("start_at")
+  endAt     DateTime @map("end_at")
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([barberId, startAt, endAt])
+  @@map("schedule_blocks")
 }
 
 model Appointment {

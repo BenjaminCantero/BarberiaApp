@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { barberApi, type ScheduleEntry } from '../api/barber.api';
+import { toast } from 'sonner';
+import { barberApi, type CreateBlockPayload, type ScheduleEntry } from '../api/barber.api';
+import { getApiErrorMessage } from '../lib/errors';
 
 export function useMyBarber(enabled = true) {
   return useQuery({
@@ -49,7 +51,48 @@ export function useSetSchedule(barberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['barbers', barberId] });
       qc.invalidateQueries({ queryKey: ['barbers', barberId, 'schedule'] });
+      qc.invalidateQueries({ queryKey: ['availability', barberId] });
+      toast.success('Horario guardado');
     },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo guardar el horario')),
+  });
+}
+
+export function useScheduleBlocks(barberId: string, range?: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ['barbers', barberId, 'blocks', range],
+    queryFn: () => barberApi.listBlocks(barberId, range).then((r) => r.data),
+    enabled: !!barberId,
+  });
+}
+
+export function useCreateBlock(barberId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBlockPayload) => barberApi.createBlock(barberId, data).then((r) => r.data),
+    onSuccess: ({ conflicts }) => {
+      qc.invalidateQueries({ queryKey: ['barbers', barberId, 'blocks'] });
+      qc.invalidateQueries({ queryKey: ['availability', barberId] });
+      if (conflicts > 0) {
+        toast.warning(`Bloqueo guardado. Tienes ${conflicts} cita${conflicts > 1 ? 's' : ''} activa${conflicts > 1 ? 's' : ''} en ese periodo: revísala${conflicts > 1 ? 's' : ''} en la agenda.`);
+      } else {
+        toast.success('Bloqueo guardado');
+      }
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo guardar el bloqueo')),
+  });
+}
+
+export function useDeleteBlock(barberId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (blockId: string) => barberApi.deleteBlock(barberId, blockId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['barbers', barberId, 'blocks'] });
+      qc.invalidateQueries({ queryKey: ['availability', barberId] });
+      toast.success('Bloqueo eliminado');
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo eliminar el bloqueo')),
   });
 }
 

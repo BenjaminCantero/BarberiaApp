@@ -29,7 +29,7 @@ export const appointmentApi = {
   create: (data: CreateAppointmentPayload) =>
     api.post<{ id: string; startAt: string; status: AppointmentStatus }>('/appointments/guest', data),
 
-  listMine: (params?: { status?: AppointmentStatus; date?: string }) =>
+  listMine: (params?: { status?: AppointmentStatus; date?: string; from?: string; to?: string }) =>
     api.get<Appointment[]>('/appointments/my', { params }),
 
   getById: (id: string) =>

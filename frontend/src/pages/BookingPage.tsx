@@ -3,11 +3,12 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useBarber } from '../hooks/useBarbers';
 import { useCreateAppointment } from '../hooks/useAppointments';
 import { formatPrice } from '../lib/format';
+import { SHOP_TIMEZONE, shopTime } from '../lib/agenda';
 
 function formatDatetime(iso: string): string {
   return new Date(iso).toLocaleString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', timeZone: SHOP_TIMEZONE,
   });
 }
 
@@ -127,7 +128,7 @@ export function BookingPage() {
                   <p className="font-black capitalize text-brand-900">{formatDatetime(startAt)}</p>
                   {endAt && (
                     <p className="text-sm font-medium text-brand-700">
-                      Finaliza: {new Date(endAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      Finaliza: {shopTime(endAt)}
                     </p>
                   )}
                 </div>

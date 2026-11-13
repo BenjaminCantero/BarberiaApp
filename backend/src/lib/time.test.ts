@@ -4,6 +4,9 @@ import {
   minutesToTime,
   generateCandidateSlots,
   rangesOverlap,
+  fitsInRanges,
+  validateDayRanges,
+  addCivilDays,
 } from './time';
 
 describe('timeToMinutes / minutesToTime', () => {
@@ -64,5 +67,57 @@ describe('rangesOverlap', () => {
 
   it('rangos disjuntos no se solapan', () => {
     expect(rangesOverlap(d('09:00'), d('09:30'), d('10:00'), d('10:30'))).toBe(false);
+  });
+});
+
+describe('fitsInRanges', () => {
+  const split = [
+    { startTime: '09:00', endTime: '13:00' },
+    { startTime: '15:00', endTime: '19:00' },
+  ];
+  it('acepta un rango dentro de un tramo', () => {
+    expect(fitsInRanges(split, '09:00', '09:30')).toBe(true);
+    expect(fitsInRanges(split, '18:30', '19:00')).toBe(true);
+  });
+  it('rechaza la pausa y los rangos que la cruzan', () => {
+    expect(fitsInRanges(split, '13:30', '14:00')).toBe(false);
+    expect(fitsInRanges(split, '12:30', '13:30')).toBe(false);
+    expect(fitsInRanges(split, '12:00', '16:00')).toBe(false);
+  });
+  it('rechaza rangos vacíos o invertidos', () => {
+    expect(fitsInRanges(split, '10:00', '10:00')).toBe(false);
+    expect(fitsInRanges(split, '23:30', '00:15')).toBe(false);
+  });
+});
+
+describe('validateDayRanges', () => {
+  it('acepta tramos separados sin importar el orden', () => {
+    expect(validateDayRanges([
+      { startTime: '15:00', endTime: '19:00' },
+      { startTime: '09:00', endTime: '13:00' },
+    ])).toBeNull();
+  });
+  it('acepta tramos contiguos', () => {
+    expect(validateDayRanges([
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '13:00', endTime: '17:00' },
+    ])).toBeNull();
+  });
+  it('detecta solapes', () => {
+    expect(validateDayRanges([
+      { startTime: '09:00', endTime: '13:00' },
+      { startTime: '12:00', endTime: '17:00' },
+    ])).toMatch(/solapan/);
+  });
+  it('detecta inicio >= fin', () => {
+    expect(validateDayRanges([{ startTime: '18:00', endTime: '09:00' }])).toMatch(/inicio/);
+  });
+});
+
+describe('addCivilDays', () => {
+  it('cruza fin de mes y de año', () => {
+    expect(addCivilDays('2026-01-31', 1)).toBe('2026-02-01');
+    expect(addCivilDays('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addCivilDays('2026-03-01', -1)).toBe('2026-02-28');
   });
 });

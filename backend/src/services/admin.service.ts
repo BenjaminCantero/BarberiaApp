@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { withAppointmentContact } from '../lib/appointment-contact';
 import { AppError } from '../middlewares/error.middleware';
+import { getZonedDateStr, zonedDayRange } from '../lib/timezone';
 import type {
   ChangeRoleInput,
   ChangeStatusInput,
@@ -101,9 +102,8 @@ export async function listAllAppointments(query: AdminAppointmentQuery) {
   if (status) where.status = status;
   if (barberId) where.barberId = barberId;
   if (date) {
-    const start = new Date(`${date}T00:00:00`);
-    const end = new Date(`${date}T23:59:59`);
-    where.startAt = { gte: start, lte: end };
+    const { start, end } = zonedDayRange(date);
+    where.startAt = { gte: start, lt: end };
   }
 
   const [appointments, total] = await Promise.all([
@@ -131,17 +131,16 @@ export async function listAllServices() {
 /**
  * Reporte de negocio para el dueño: ingresos, ocupación, servicios y barberos
  * top en un rango de fechas. Los ingresos se calculan sobre citas COMPLETADAS.
- *
- * Nota: el agrupado por día usa la fecha en UTC. Cuando se corrija la zona
- * horaria del servidor (ver deuda técnica conocida), conviene revisar esto.
+ * Rangos y agrupado por día usan la zona horaria de la barbería.
  */
 export async function getReports(fromStr?: string, toStr?: string) {
   const now = new Date();
-  // Por defecto: desde el primer día del mes actual hasta hoy.
-  const from = fromStr ? new Date(`${fromStr}T00:00:00`) : new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = toStr ? new Date(`${toStr}T23:59:59`) : now;
+  // Por defecto: desde el primer día del mes actual hasta hoy (en la zona de la barbería).
+  const today = getZonedDateStr(now);
+  const from = zonedDayRange(fromStr ?? `${today.slice(0, 8)}01`).start;
+  const to = toStr ? zonedDayRange(toStr).end : now;
 
-  const inRange = { startAt: { gte: from, lte: to } };
+  const inRange = { startAt: { gte: from, lt: to } };
 
   const [completed, cancelledCount, totalInRange] = await Promise.all([
     prisma.appointment.findMany({
@@ -175,7 +174,7 @@ export async function getReports(fromStr?: string, toStr?: string) {
     b.revenue += price;
     byBarber.set(a.barber.id, b);
 
-    const day = a.startAt.toISOString().slice(0, 10);
+    const day = getZonedDateStr(a.startAt);
     byDay.set(day, (byDay.get(day) ?? 0) + price);
   }
 

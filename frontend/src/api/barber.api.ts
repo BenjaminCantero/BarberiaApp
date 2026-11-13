@@ -37,6 +37,21 @@ export interface ScheduleEntry {
   isActive?: boolean;
 }
 
+export interface ScheduleBlock {
+  id: string;
+  startAt: string;
+  endAt: string;
+  reason?: string | null;
+}
+
+export interface CreateBlockPayload {
+  startDate: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+  reason?: string;
+}
+
 export const barberApi = {
   list: () => api.get<Barber[]>('/barbers'),
 
@@ -51,6 +66,14 @@ export const barberApi = {
 
   setSchedule: (id: string, schedule: ScheduleEntry[]) =>
     api.put(`/barbers/${id}/schedule`, { schedule }),
+
+  listBlocks: (id: string, params?: { from?: string; to?: string }) =>
+    api.get<ScheduleBlock[]>(`/barbers/${id}/blocks`, { params }),
+
+  createBlock: (id: string, data: CreateBlockPayload) =>
+    api.post<{ block: ScheduleBlock; conflicts: number }>(`/barbers/${id}/blocks`, data),
+
+  deleteBlock: (id: string, blockId: string) => api.delete(`/barbers/${id}/blocks/${blockId}`),
 
   getAvailability: (id: string, date: string, serviceId?: string) =>
     api.get<TimeSlot[]>(`/barbers/${id}/availability`, {

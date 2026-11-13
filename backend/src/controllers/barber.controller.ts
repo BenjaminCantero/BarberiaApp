@@ -54,6 +54,28 @@ export async function setSchedule(req: AuthRequest, res: Response, next: NextFun
   } catch (err) { next(err); }
 }
 
+export async function listBlocks(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { from, to } = req.query as { from?: string; to?: string };
+    const blocks = await barberService.listBlocks(req.params.id, req.user!.userId, req.user!.role, { from, to });
+    res.json(blocks);
+  } catch (err) { next(err); }
+}
+
+export async function createBlock(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const result = await barberService.createBlock(req.params.id, req.user!.userId, req.user!.role, req.body);
+    res.status(201).json(result);
+  } catch (err) { next(err); }
+}
+
+export async function deleteBlock(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await barberService.deleteBlock(req.params.id, req.params.blockId, req.user!.userId, req.user!.role);
+    res.status(204).end();
+  } catch (err) { next(err); }
+}
+
 export async function getAvailability(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { date, serviceId } = req.query as { date: string; serviceId?: string };

@@ -7,61 +7,23 @@ import { useBarberPortfolio } from '../hooks/usePortfolio';
 import { PortfolioGallery } from '../components/PortfolioGallery';
 import { useBarberReviews } from '../hooks/useReviews';
 import { StarRatingDisplay } from '../components/StarRating';
-import type { Schedule } from '../api/barber.api';
+import { DAY_NAMES, WEEK_ORDER, formatRanges, nextWorkingDate, rangesByDay, shopDate } from '../lib/agenda';
 import { formatPrice } from '../lib/format';
 import { instagramUrl } from '../lib/instagram';
 import { InstagramIcon } from '../components/InstagramIcon';
-
-const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-// Usa la fecha LOCAL del usuario, no UTC
-function localDateStr(d: Date = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-// Devuelve el primer día con horario disponible a partir de hoy
-function nextAvailableDate(schedules: Schedule[]): string {
-  const activeDays = new Set(schedules.filter((s) => s.isActive).map((s) => s.dayOfWeek));
-  if (activeDays.size === 0) return localDateStr();
-
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + i);
-    const dow = d.getDay();
-    if (!activeDays.has(dow)) continue;
-
-    if (i === 0) {
-      // Hoy: verificar que quede al menos un slot de 30 min antes del cierre
-      const sched = schedules.find((s) => s.dayOfWeek === dow && s.isActive);
-      if (sched) {
-        const [eh, em] = sched.endTime.split(':').map(Number);
-        const lastSlotStart = eh * 60 + em - 30;
-        if (currentMinutes >= lastSlotStart) continue; // ya cerró
-      }
-    }
-    return localDateStr(d);
-  }
-  return localDateStr();
-}
 
 export function BarberProfile() {
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const { data: barber, isLoading, isError } = useBarber(id!);
 
-  const [selectedDate, setSelectedDate] = useState(localDateStr());
+  const [selectedDate, setSelectedDate] = useState(shopDate());
   const [selectedServiceId, setSelectedServiceId] = useState<string>(params.get('serviceId') || '');
 
   // Cuando carga el horario del barbero, saltar al primer día disponible
   useEffect(() => {
     if (barber?.schedules && barber.schedules.length > 0) {
-      setSelectedDate(nextAvailableDate(barber.schedules));
+      setSelectedDate(nextWorkingDate(barber.schedules));
     }
   }, [barber?.schedules]);
 
@@ -132,12 +94,15 @@ export function BarberProfile() {
             <div className="panel p-6">
               <h2 className="mb-3 font-black text-slate-900">Horario</h2>
               <div className="space-y-2">
-                {barber.schedules.filter((s) => s.isActive).map((s) => (
-                  <div key={s.id} className="flex justify-between text-sm">
-                    <span className="text-slate-600">{DAY_NAMES[s.dayOfWeek]}</span>
-                    <span className="font-bold text-slate-900">{s.startTime} – {s.endTime}</span>
-                  </div>
-                ))}
+                {(() => {
+                  const byDay = rangesByDay(barber.schedules);
+                  return WEEK_ORDER.filter((d) => byDay.has(d)).map((d) => (
+                    <div key={d} className="flex justify-between gap-4 text-sm">
+                      <span className="text-slate-600">{DAY_NAMES[d]}</span>
+                      <span className="text-right font-bold text-slate-900">{formatRanges(byDay.get(d)!)}</span>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           )}
@@ -248,7 +213,7 @@ export function BarberProfile() {
                 id="booking-date"
                 type="date"
                 value={selectedDate}
-                min={localDateStr()}
+                min={shopDate()}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="input-field max-w-xs"
               />

@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom';
 import type { Barber } from '../api/barber.api';
 import { StarRatingDisplay } from './StarRating';
 import { formatPrice } from '../lib/format';
-
-const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+import { DAY_SHORT, WEEK_ORDER, rangesByDay } from '../lib/agenda';
 
 interface Props {
   barber: Barber;
@@ -65,10 +64,10 @@ export function BarberCard({ barber }: Props) {
       {barber.schedules && barber.schedules.length > 0 && (
         <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
           Disponible:{' '}
-          {barber.schedules
-            .filter((s) => s.isActive)
-            .map((s) => DAY_NAMES[s.dayOfWeek])
-            .join(', ')}
+          {(() => {
+            const byDay = rangesByDay(barber.schedules);
+            return WEEK_ORDER.filter((d) => byDay.has(d)).map((d) => DAY_SHORT[d]).join(', ');
+          })()}
         </div>
       )}
 

@@ -8,7 +8,9 @@
  * usando Intl, sin dependencias externas.
  */
 
-export const SHOP_TIMEZONE = process.env.SHOP_TIMEZONE ?? 'America/Argentina/Buenos_Aires';
+import { addCivilDays } from './time';
+
+export const SHOP_TIMEZONE = process.env.SHOP_TIMEZONE ?? 'America/Santiago';
 
 const WEEKDAY_INDEX: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
@@ -67,4 +69,22 @@ export function getZonedHHMM(instant: Date, timeZone = SHOP_TIMEZONE): string {
 export function civilDateDayOfWeek(date: string): number {
   const [y, mo, d] = date.split('-').map(Number);
   return new Date(Date.UTC(y, mo - 1, d, 12)).getUTCDay();
+}
+
+/** Fecha civil "YYYY-MM-DD" de un instante, en `timeZone`. */
+export function getZonedDateStr(instant: Date, timeZone = SHOP_TIMEZONE): string {
+  const m = partsInZone(instant, timeZone);
+  return `${m.year}-${String(m.month).padStart(2, '0')}-${String(m.day).padStart(2, '0')}`;
+}
+
+/**
+ * Límites [inicio, fin) de los días civiles `from`..`to` (ambos inclusive) en
+ * `timeZone`. Usa la medianoche real de cada extremo, así un día con cambio de
+ * horario (23 o 25 h) queda bien acotado.
+ */
+export function zonedDayRange(from: string, to: string = from, timeZone = SHOP_TIMEZONE): { start: Date; end: Date } {
+  return {
+    start: zonedWallTimeToUtc(from, '00:00', timeZone),
+    end: zonedWallTimeToUtc(addCivilDays(to, 1), '00:00', timeZone),
+  };
 }

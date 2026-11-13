@@ -16,6 +16,7 @@ import {
 import type { AdminUser } from '../api/admin.api';
 import { PortfolioModeration } from '../components/PortfolioModeration';
 import { usePortfolioReviewQueue } from '../hooks/usePortfolio';
+import { SHOP_TIMEZONE, shopDate, shopTime } from '../lib/agenda';
 
 type Tab = 'overview' | 'reports' | 'users' | 'services' | 'appointments' | 'portfolio';
 
@@ -65,12 +66,10 @@ function StatsOverview() {
 }
 
 function firstOfMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return `${shopDate().slice(0, 8)}01`;
 }
 function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return shopDate();
 }
 
 function ReportsPanel() {
@@ -623,11 +622,9 @@ function AppointmentsPanel() {
                 {data?.appointments.map((a) => {
                   const dt = new Date(a.startAt);
                   const dateStr = dt.toLocaleDateString('es-ES', {
-                    day: '2-digit', month: 'short', year: 'numeric',
+                    day: '2-digit', month: 'short', year: 'numeric', timeZone: SHOP_TIMEZONE,
                   });
-                  const timeStr = dt.toLocaleTimeString('es-ES', {
-                    hour: '2-digit', minute: '2-digit',
-                  });
+                  const timeStr = shopTime(dt);
                   return (
                     <tr key={a.id} className="bg-white hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3">

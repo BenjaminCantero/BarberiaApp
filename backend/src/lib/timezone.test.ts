@@ -4,6 +4,8 @@ import {
   getZonedDayOfWeek,
   getZonedHHMM,
   civilDateDayOfWeek,
+  getZonedDateStr,
+  zonedDayRange,
 } from './timezone';
 
 const BA = 'America/Argentina/Buenos_Aires'; // UTC-3 fijo (sin DST)
@@ -60,5 +62,35 @@ describe('civilDateDayOfWeek', () => {
   it('devuelve el día de la semana de una fecha civil', () => {
     expect(civilDateDayOfWeek('2026-07-10')).toBe(5); // viernes
     expect(civilDateDayOfWeek('2026-07-12')).toBe(0); // domingo
+  });
+});
+
+describe('getZonedDateStr', () => {
+  it('usa la fecha de la barbería, no la UTC', () => {
+    // 02:00 UTC del día 15 = 23:00 del día 14 en Buenos Aires
+    expect(getZonedDateStr(new Date('2026-06-15T02:00:00Z'), BA)).toBe('2026-06-14');
+    expect(getZonedDateStr(new Date('2026-06-15T03:00:00Z'), BA)).toBe('2026-06-15');
+  });
+});
+
+describe('zonedDayRange', () => {
+  it('acota un día en la medianoche de la barbería', () => {
+    const { start, end } = zonedDayRange('2026-06-14', '2026-06-14', BA);
+    expect(start.toISOString()).toBe('2026-06-14T03:00:00.000Z');
+    expect(end.toISOString()).toBe('2026-06-15T03:00:00.000Z');
+  });
+  it('una cita a las 23:00 locales queda en su día', () => {
+    const { start, end } = zonedDayRange('2026-06-14', '2026-06-14', BA);
+    const lateAppt = new Date('2026-06-15T02:00:00Z'); // 23:00 BA del 14
+    expect(lateAppt >= start && lateAppt < end).toBe(true);
+  });
+  it('cubre semanas completas', () => {
+    const { start, end } = zonedDayRange('2026-06-15', '2026-06-21', BA);
+    expect(end.getTime() - start.getTime()).toBe(7 * 86_400_000);
+  });
+  it('respeta días de 23 h por cambio de horario', () => {
+    // 8 de marzo de 2026: Nueva York adelanta la hora
+    const { start, end } = zonedDayRange('2026-03-08', '2026-03-08', NY);
+    expect(end.getTime() - start.getTime()).toBe(23 * 3_600_000);
   });
 });

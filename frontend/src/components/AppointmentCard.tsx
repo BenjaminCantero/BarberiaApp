@@ -6,24 +6,24 @@ import { useUpdateAppointmentStatus, useRescheduleAppointment } from '../hooks/u
 import { useCreateReview } from '../hooks/useReviews';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
 import { formatPrice } from '../lib/format';
+import { SHOP_TIMEZONE, shopDate, shopTime, shopWallTimeToIso } from '../lib/agenda';
 
 interface Props {
   appointment: Appointment;
   viewAs: 'CLIENT' | 'BARBER' | 'ADMIN';
 }
 
+// Fechas y horas siempre en la zona de la barbería, no la del navegador.
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('es-ES', {
     weekday: 'short', day: 'numeric', month: 'short',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', timeZone: SHOP_TIMEZONE,
   });
 }
 
-// Convierte una fecha ISO a formato compatible con <input type="datetime-local">
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const off = d.getTimezoneOffset() * 60_000;
-  return new Date(d.getTime() - off).toISOString().slice(0, 16);
+// Valor para <input type="datetime-local"> en hora de la barbería.
+function toShopInput(iso: string): string {
+  return `${shopDate(iso)}T${shopTime(iso)}`;
 }
 
 export function AppointmentCard({ appointment, viewAs }: Props) {
@@ -34,7 +34,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
 
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
-  const [newStart, setNewStart] = useState(() => toLocalInput(startAt));
+  const [newStart, setNewStart] = useState(() => toShopInput(startAt));
   const [reviewing, setReviewing] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -60,7 +60,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
 
   const handleReschedule = () => {
     reschedule.mutate(
-      { id, startAt: new Date(newStart).toISOString() },
+      { id, startAt: shopWallTimeToIso(newStart.slice(0, 10), newStart.slice(11, 16)) },
       { onSuccess: () => setRescheduling(false) },
     );
   };
@@ -70,7 +70,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-lg font-black text-slate-950">{service.name}</p>
-          <p className="text-sm font-medium text-slate-500">{formatDate(startAt)} – {new Date(endAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="text-sm font-medium text-slate-500">{formatDate(startAt)} – {shopTime(endAt)}</p>
         </div>
         <StatusBadge status={status} />
       </div>
@@ -139,7 +139,7 @@ export function AppointmentCard({ appointment, viewAs }: Props) {
           )}
           {canReschedule && !rescheduling && (
             <button
-              onClick={() => { setNewStart(toLocalInput(startAt)); setRescheduling(true); }}
+              onClick={() => { setNewStart(toShopInput(startAt)); setRescheduling(true); }}
               disabled={update.isPending || reschedule.isPending}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >

@@ -10,7 +10,7 @@ import nodemailer, { type Transporter } from 'nodemailer';
  */
 
 const SHOP_NAME = process.env.SHOP_NAME ?? 'Barbería';
-const SHOP_TIMEZONE = process.env.SHOP_TIMEZONE ?? 'America/Argentina/Buenos_Aires';
+import { SHOP_TIMEZONE } from '../lib/timezone';
 const FROM = process.env.SMTP_FROM ?? 'no-reply@barberia.app';
 
 let transporter: Transporter | null = null;

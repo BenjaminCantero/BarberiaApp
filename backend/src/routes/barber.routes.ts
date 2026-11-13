@@ -10,6 +10,8 @@ import {
   setScheduleSchema,
   availabilityQuerySchema,
   assignServiceSchema,
+  createBlockSchema,
+  listBlocksQuerySchema,
 } from '../schemas/barber.schema';
 
 const router = Router();
@@ -159,6 +161,46 @@ router.put(
   validate(setScheduleSchema),
   barberController.setSchedule,
 );
+
+/**
+ * @swagger
+ * /barbers/{id}/blocks:
+ *   get:
+ *     summary: Bloqueos de agenda vigentes (vacaciones, días libres, horas puntuales)
+ *     tags: [Barbers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: from, schema: { type: string, example: "2026-12-01" } }
+ *       - { in: query, name: to, schema: { type: string, example: "2026-12-31" } }
+ *   post:
+ *     summary: Bloquear días completos (startDate..endDate) o un tramo horario de un día
+ *     tags: [Barbers]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [startDate]
+ *             properties:
+ *               startDate: { type: string, example: "2026-12-24" }
+ *               endDate:   { type: string, example: "2026-12-31" }
+ *               startTime: { type: string, example: "10:00" }
+ *               endTime:   { type: string, example: "12:00" }
+ *               reason:    { type: string, example: "Vacaciones" }
+ *     responses:
+ *       201:
+ *         description: Bloqueo creado; `conflicts` = citas activas que caen dentro
+ * /barbers/{id}/blocks/{blockId}:
+ *   delete:
+ *     summary: Eliminar un bloqueo
+ *     tags: [Barbers]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.get('/:id/blocks', authenticate, authorize('BARBER', 'ADMIN'), validate(listBlocksQuerySchema), barberController.listBlocks);
+router.post('/:id/blocks', authenticate, authorize('BARBER', 'ADMIN'), validate(createBlockSchema), barberController.createBlock);
+router.delete('/:id/blocks/:blockId', authenticate, authorize('BARBER', 'ADMIN'), barberController.deleteBlock);
 
 /**
  * @swagger

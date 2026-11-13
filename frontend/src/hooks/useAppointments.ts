@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { appointmentApi, type AppointmentStatus, type CreateAppointmentPayload } from '../api/appointment.api';
 import { getApiErrorMessage } from '../lib/errors';
 
-export function useMyAppointments(filters?: { status?: AppointmentStatus; date?: string }) {
+export function useMyAppointments(filters?: { status?: AppointmentStatus; date?: string; from?: string; to?: string }) {
   return useQuery({
     queryKey: ['appointments', 'my', filters],
     queryFn: () => appointmentApi.listMine(filters).then((r) => r.data),

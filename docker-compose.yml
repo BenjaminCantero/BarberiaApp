@@ -31,7 +31,7 @@ services:
       PORT: 3000
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
       SHOP_NAME: ${SHOP_NAME:-Mi Barbería}
-      SHOP_TIMEZONE: ${SHOP_TIMEZONE:-America/Argentina/Buenos_Aires}
+      SHOP_TIMEZONE: ${SHOP_TIMEZONE:-America/Santiago}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}

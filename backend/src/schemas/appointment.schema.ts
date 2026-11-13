@@ -28,6 +28,8 @@ export const listAppointmentsQuerySchema = z.object({
   query: z.object({
     status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']).optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   }),
 });
 

@@ -21,11 +21,11 @@ export async function createGuest(req: AuthRequest, res: Response, next: NextFun
 
 export async function listMine(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { status, date } = req.query as { status?: string; date?: string };
+    const { status, date, from, to } = req.query as { status?: string; date?: string; from?: string; to?: string };
     const appointments = await appointmentService.getMyAppointments(
       req.user!.userId,
       req.user!.role,
-      { status: status as AppointmentStatus | undefined, date },
+      { status: status as AppointmentStatus | undefined, date, from, to },
     );
     res.json(appointments);
   } catch (err) { next(err); }
