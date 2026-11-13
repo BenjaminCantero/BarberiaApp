@@ -68,6 +68,35 @@ docker compose up --build
 Variables opcionales: `SHOP_NAME`, `SHOP_TIMEZONE`, `SMTP_*` (ver `backend/.env.example`).
 Si no se configura SMTP, los emails se registran en consola en vez de enviarse.
 
+## Despliegue en Vercel
+
+El repositorio se despliega como un solo proyecto con dos servicios (ver `vercel.json`):
+`backend` (Express) recibe `/api/*` y `frontend` (Vite) recibe todo lo demás.
+
+1. **Base de datos (Supabase).** En *Project Settings → Database → Connection string*:
+   - `DATABASE_URL`: el *Transaction pooler* (puerto 6543) agregando `?pgbouncer=true&connection_limit=1`.
+   - `DIRECT_URL`: la conexión directa o el *Session pooler* (puerto 5432).
+2. **Migraciones**, desde tu máquina y apuntando a Supabase (no corren en el build):
+   ```bash
+   cd backend
+   DATABASE_URL="<pooler 6543>" DIRECT_URL="<directa 5432>" npx prisma migrate deploy
+   # Opcional, solo la primera vez: datos de ejemplo
+   DATABASE_URL="<pooler 6543>" DIRECT_URL="<directa 5432>" npm run db:seed
+   ```
+3. **Archivos subidos.** En el proyecto de Vercel: *Storage → Create → Blob* y conectarlo al proyecto.
+   Vercel agrega `BLOB_READ_WRITE_TOKEN`; con esa variable las fotos y certificados se guardan en Blob.
+   Las subidas se limitan a 4 MB (límite de las funciones de Vercel); el panel comprime las fotos antes de subirlas.
+4. **Variables de entorno** del proyecto: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`,
+   `JWT_REFRESH_SECRET`, `FRONTEND_URL` (el dominio público, p. ej. `https://dragonstudio.vercel.app`,
+   usado en los enlaces de los correos), `CRON_SECRET` (cualquier cadena aleatoria larga),
+   `SHOP_TIMEZONE` y las `SMTP_*` para enviar correos reales.
+5. **Recordatorios.** Vercel Cron llama a `GET /api/cron/reminders` una vez al día a las 12:00 UTC
+   (límite del plan Hobby) y envía los recordatorios de las citas de las próximas 24 horas.
+   En plan Pro se puede pasar a cada hora cambiando `schedule` a `"0 * * * *"` en `vercel.json`.
+
+Fuera de Vercel (local o Docker) nada de esto cambia: el backend levanta su propio servidor,
+guarda las subidas en `backend/uploads` y corre el barrido de recordatorios cada hora.
+
 ## Estructura
 
 ```

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockPrisma, mockFs } = vi.hoisted(() => ({
+const { mockPrisma, mockDeleteUpload } = vi.hoisted(() => ({
   mockPrisma: {
     portfolioPhoto: {
       findMany: vi.fn(),
@@ -11,11 +11,11 @@ const { mockPrisma, mockFs } = vi.hoisted(() => ({
       delete: vi.fn(),
     },
   },
-  mockFs: { existsSync: vi.fn(), unlinkSync: vi.fn() },
+  mockDeleteUpload: vi.fn()
 }));
 
 vi.mock('../lib/prisma', () => ({ prisma: mockPrisma }));
-vi.mock('fs', () => ({ default: mockFs, ...mockFs }));
+vi.mock('../lib/storage', () => ({ deleteUpload: mockDeleteUpload }));
 
 import {
   MAX_PHOTOS_PER_BARBER,
@@ -100,10 +100,9 @@ describe('deletePortfolioPhoto', () => {
 
   it('borra la fila y el archivo físico', async () => {
     mockPrisma.portfolioPhoto.findUnique.mockResolvedValue({ id: 'p1', barberId: 'b1', imageUrl: '/uploads/a.jpg' });
-    mockFs.existsSync.mockReturnValue(true);
     await deletePortfolioPhoto('p1', 'b1');
     expect(mockPrisma.portfolioPhoto.delete).toHaveBeenCalledWith({ where: { id: 'p1' } });
-    expect(mockFs.unlinkSync).toHaveBeenCalledWith(expect.stringMatching(/uploads[\\/]a\.jpg$/));
+    expect(mockDeleteUpload).toHaveBeenCalledWith('/uploads/a.jpg');
   });
 });
 

@@ -8,7 +8,8 @@ const options: swaggerJsdoc.Options = {
       version: '1.0.0',
       description: 'API REST para sistema de reservas de barbería',
     },
-    servers: [{ url: `http://localhost:${process.env.PORT ?? 3000}/api` }],
+    // Relativo: funciona igual en local, Docker y Vercel.
+    servers: [{ url: '/api' }],
     components: {
       securitySchemes: {
         bearerAuth: {

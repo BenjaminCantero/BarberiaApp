@@ -1,35 +1,20 @@
 import multer from 'multer';
-import path from 'path';
-import crypto from 'crypto';
-import fs from 'fs';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+/**
+ * Multer guarda el archivo en memoria; luego lib/storage decide si va a
+ * Vercel Blob o al disco local. Límite 4 MB: las funciones de Vercel aceptan
+ * como máximo 4,5 MB por petición (el frontend comprime las fotos antes).
+ */
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const storage = multer.memoryStorage();
 
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const rand = crypto.randomBytes(12).toString('hex');
-    cb(null, `${rand}${ext}`);
-  },
-});
-
-const ALLOWED_MIMES = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'application/pdf',
-]);
+const CERTIFICATE_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']);
 
 export const certificateUpload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIMES.has(file.mimetype)) {
+    if (CERTIFICATE_MIMES.has(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Solo se permiten imágenes JPG/PNG y archivos PDF'));
@@ -41,7 +26,7 @@ const PORTFOLIO_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/
 
 export const portfolioUpload = multer({
   storage,
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     if (PORTFOLIO_MIMES.has(file.mimetype)) {
       cb(null, true);

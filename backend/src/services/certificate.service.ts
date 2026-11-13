@@ -1,6 +1,5 @@
-import fs from 'fs';
-import path from 'path';
 import { prisma } from '../lib/prisma';
+import { deleteUpload } from '../lib/storage';
 import { AppError } from '../middlewares/error.middleware';
 
 export async function listCertificates(barberId: string) {
@@ -30,11 +29,6 @@ export async function deleteCertificate(
   if (!cert) throw new AppError(404, 'Certificado no encontrado');
   if (cert.barberId !== barberId) throw new AppError(403, 'Sin permisos para eliminar este certificado');
 
-  // Borrar archivo físico
-  const filePath = path.join(process.cwd(), 'uploads', path.basename(cert.fileUrl));
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-
   await prisma.certificate.delete({ where: { id: certId } });
+  await deleteUpload(cert.fileUrl);
 }

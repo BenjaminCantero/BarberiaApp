@@ -300,7 +300,7 @@ export function BarberDashboard() {
 
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-slate-500">
-                  Archivo (JPG, PNG o PDF · máx. 10 MB)
+                  Archivo (JPG, PNG o PDF · máx. 4 MB)
                 </label>
                 <input
                   ref={fileInputRef}

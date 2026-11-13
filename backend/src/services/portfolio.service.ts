@@ -1,8 +1,7 @@
-import fs from 'fs';
-import path from 'path';
 import type { PortfolioStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/error.middleware';
+import { deleteUpload } from '../lib/storage';
 
 export const MAX_PHOTOS_PER_BARBER = 30;
 const MAX_PUBLIC_LIMIT = 48;
@@ -10,12 +9,6 @@ const MAX_PUBLIC_LIMIT = 48;
 const barberSummary = {
   select: { id: true, user: { select: { name: true, avatarUrl: true } } },
 } as const;
-
-/** Borra el archivo físico asociado a una URL /uploads/<archivo>. */
-export function removeUploadedFile(fileUrl: string) {
-  const filePath = path.join(process.cwd(), 'uploads', path.basename(fileUrl));
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-}
 
 /** Fotos visibles al público: solo aprobadas y de barberos activos. */
 export async function listPublicPortfolio(opts: { barberId?: string; limit?: number } = {}) {
@@ -83,7 +76,7 @@ export async function deletePortfolioPhoto(photoId: string, barberId: string | n
     throw new AppError(403, 'Sin permisos para eliminar esta foto');
   }
   await prisma.portfolioPhoto.delete({ where: { id: photoId } });
-  removeUploadedFile(photo.imageUrl);
+  await deleteUpload(photo.imageUrl);
 }
 
 export async function reviewPortfolioPhoto(photoId: string, status: 'APPROVED' | 'REJECTED') {

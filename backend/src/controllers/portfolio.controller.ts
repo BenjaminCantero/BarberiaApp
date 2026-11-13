@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../middlewares/error.middleware';
 import * as portfolioService from '../services/portfolio.service';
 import * as barberService from '../services/barber.service';
+import { storeUpload, deleteUpload } from '../lib/storage';
 
 /** Verifica que el usuario sea el barbero dueño del perfil o un admin. */
 async function assertOwnerOrAdmin(req: AuthRequest, barberId: string) {
@@ -50,10 +51,11 @@ export async function listMine(req: AuthRequest, res: Response, next: NextFuncti
 
 /** POST /api/barbers/:id/portfolio — subir foto (multipart, campo "file"). */
 export async function upload(req: AuthRequest, res: Response, next: NextFunction) {
-  const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  let imageUrl: string | null = null;
   try {
-    if (!imageUrl) throw new AppError(400, 'No se recibió ninguna imagen');
+    if (!req.file) throw new AppError(400, 'No se recibió ninguna imagen');
     await assertOwnerOrAdmin(req, req.params.id);
+    imageUrl = await storeUpload(req.file, 'portfolio');
 
     const { caption } = req.body as { caption?: string };
     const photo = await portfolioService.createPortfolioPhoto({
@@ -64,8 +66,8 @@ export async function upload(req: AuthRequest, res: Response, next: NextFunction
     });
     res.status(201).json(photo);
   } catch (err) {
-    // Si falló algo después de que multer guardó el archivo, no dejar basura en disco.
-    if (imageUrl) portfolioService.removeUploadedFile(imageUrl);
+    // Si falló algo después de guardar el archivo, no dejar huérfanos.
+    if (imageUrl) await deleteUpload(imageUrl);
     next(err);
   }
 }

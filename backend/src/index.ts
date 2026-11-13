@@ -18,9 +18,16 @@ import userRoutes from './routes/user.routes';
 import adminRoutes from './routes/admin.routes';
 import reviewRoutes from './routes/review.routes';
 import portfolioRoutes from './routes/portfolio.routes';
+import cronRoutes from './routes/cron.routes';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
+// En Vercel la app corre como función serverless detrás del proxy de Vercel.
+const ON_VERCEL = !!process.env.VERCEL;
+
+// Detrás de un proxy (Vercel, nginx) la IP real llega en X-Forwarded-For;
+// express-rate-limit la necesita para limitar por cliente y no por proxy.
+app.set('trust proxy', 1);
 
 // Seguridad: headers HTTP
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -63,6 +70,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/cron', cronRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -72,10 +80,15 @@ app.get('/api/health', (_req, res) => {
 // Manejo de errores (debe ser el último middleware)
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`Documentación Swagger: http://localhost:${PORT}/api/docs`);
+// En Vercel la app se exporta como función y los recordatorios los dispara
+// Vercel Cron (GET /api/cron/reminders). Fuera de Vercel se levanta un
+// servidor normal con el barrido horario en proceso.
+if (!ON_VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Documentación Swagger: http://localhost:${PORT}/api/docs`);
+    startReminderJob();
+  });
+}
 
-  // Recordatorios automáticos de citas (barrido horario)
-  startReminderJob();
-});
+export default app;

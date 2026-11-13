@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../middlewares/error.middleware';
 import * as certService from '../services/certificate.service';
 import * as barberService from '../services/barber.service';
+import { storeUpload, deleteUpload } from '../lib/storage';
 
 export async function list(req: AuthRequest, res: Response, next: NextFunction) {
   try {
@@ -29,17 +30,21 @@ export async function upload(req: AuthRequest, res: Response, next: NextFunction
     }
 
     const fileType = req.file.mimetype === 'application/pdf' ? 'pdf' : 'image';
-    const fileUrl = `/uploads/${req.file.filename}`;
+    const fileUrl = await storeUpload(req.file, 'certificates');
 
-    const cert = await certService.createCertificate(
-      barberId,
-      title.trim(),
-      description?.trim() || undefined,
-      fileUrl,
-      fileType,
-    );
-
-    res.status(201).json(cert);
+    try {
+      const cert = await certService.createCertificate(
+        barberId,
+        title.trim(),
+        description?.trim() || undefined,
+        fileUrl,
+        fileType,
+      );
+      res.status(201).json(cert);
+    } catch (err) {
+      await deleteUpload(fileUrl);
+      throw err;
+    }
   } catch (err) {
     next(err);
   }

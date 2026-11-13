@@ -4,8 +4,11 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useMyPortfolio, useUploadPortfolioPhoto, useDeletePortfolioPhoto } from '../hooks/usePortfolio';
 import { getApiErrorMessage } from '../lib/errors';
 import type { PortfolioStatus } from '../api/portfolio.api';
+import { compressImage } from '../lib/compressImage';
 
-const MAX_MB = 8;
+// Se acepta una foto grande del celular: se comprime en el navegador antes de subir.
+const MAX_MB = 25;
+const SERVER_MAX_MB = 4;
 const STATUS_LABEL: Record<PortfolioStatus, string> = {
   PENDING: 'En revisión',
   APPROVED: 'Publicada',
@@ -31,13 +34,27 @@ export function PortfolioManager({ barberId }: { barberId: string }) {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  const onPick = (f: File | null) => {
-    if (f && f.size > MAX_MB * 1024 * 1024) {
+  const [preparing, setPreparing] = useState(false);
+
+  const onPick = async (f: File | null) => {
+    if (!f) return setFile(null);
+    if (f.size > MAX_MB * 1024 * 1024) {
       toast.error(`La imagen supera ${MAX_MB} MB`);
       if (fileRef.current) fileRef.current.value = '';
       return;
     }
-    setFile(f);
+    setPreparing(true);
+    try {
+      const ready = await compressImage(f);
+      if (ready.size > SERVER_MAX_MB * 1024 * 1024) {
+        toast.error('La imagen sigue siendo muy pesada. Prueba con otra foto.');
+        if (fileRef.current) fileRef.current.value = '';
+        return;
+      }
+      setFile(ready);
+    } finally {
+      setPreparing(false);
+    }
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -77,7 +94,7 @@ export function PortfolioManager({ barberId }: { barberId: string }) {
           ) : (
             <span>
               <strong>Elegir foto</strong>
-              <small>JPG, PNG o WebP · máx. {MAX_MB} MB</small>
+              <small>{preparing ? 'Preparando foto…' : `JPG, PNG o WebP · se optimiza al subir`}</small>
             </span>
           )}
           <input
@@ -102,7 +119,7 @@ export function PortfolioManager({ barberId }: { barberId: string }) {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <button type="submit" className="btn-primary" disabled={!file || upload.isPending}>
+          <button type="submit" className="btn-primary" disabled={!file || preparing || upload.isPending}>
             {upload.isPending ? 'Subiendo…' : 'Enviar a revisión'}
           </button>
           {file && (
