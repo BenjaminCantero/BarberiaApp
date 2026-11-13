@@ -3,7 +3,8 @@ import * as barberController from '../controllers/barber.controller';
 import * as certController from '../controllers/certificate.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
-import { certificateUpload } from '../lib/upload';
+import { certificateUpload, portfolioUpload } from '../lib/upload';
+import * as portfolioController from '../controllers/portfolio.controller';
 import {
   updateBarberSchema,
   setScheduleSchema,
@@ -87,6 +88,7 @@ router.get('/:id', barberController.getBarber);
  *             type: object
  *             properties:
  *               bio: { type: string }
+ *               instagram: { type: string, description: "Usuario, @usuario o URL del perfil; vacío lo borra" }
  *               isActive: { type: boolean }
  *     responses:
  *       200:
@@ -267,5 +269,38 @@ router.delete(
   authorize('BARBER', 'ADMIN'),
   certController.remove,
 );
+
+// Portafolio de trabajos
+/**
+ * @swagger
+ * /barbers/{id}/portfolio:
+ *   get:
+ *     summary: Fotos aprobadas del portafolio de un barbero
+ *     tags: [Portafolio]
+ *   post:
+ *     summary: Subir foto al portafolio (barbero dueño queda PENDING; admin queda APPROVED)
+ *     tags: [Portafolio]
+ *     security: [{ bearerAuth: [] }]
+ * /barbers/{id}/portfolio/mine:
+ *   get:
+ *     summary: Todas las fotos del barbero con su estado (dueño o admin)
+ *     tags: [Portafolio]
+ *     security: [{ bearerAuth: [] }]
+ * /barbers/{id}/portfolio/{photoId}:
+ *   delete:
+ *     summary: Eliminar foto del portafolio
+ *     tags: [Portafolio]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.get('/:id/portfolio', portfolioController.listForBarber);
+router.get('/:id/portfolio/mine', authenticate, authorize('BARBER', 'ADMIN'), portfolioController.listMine);
+router.post(
+  '/:id/portfolio',
+  authenticate,
+  authorize('BARBER', 'ADMIN'),
+  portfolioUpload.single('file'),
+  portfolioController.upload,
+);
+router.delete('/:id/portfolio/:photoId', authenticate, authorize('BARBER', 'ADMIN'), portfolioController.remove);
 
 export default router;

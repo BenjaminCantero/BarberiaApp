@@ -17,6 +17,7 @@ import appointmentRoutes from './routes/appointment.routes';
 import userRoutes from './routes/user.routes';
 import adminRoutes from './routes/admin.routes';
 import reviewRoutes from './routes/review.routes';
+import portfolioRoutes from './routes/portfolio.routes';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -40,9 +41,13 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' },
+  // Solo limita los endpoints atacables por fuerza bruta. /refresh, /logout y /me
+  // requieren un token válido y se llaman en cada carga de página: limitarlos
+  // dejaba sin sesión a usuarios normales tras ~10 recargas.
+  skip: (req) => ['/refresh', '/logout', '/me'].includes(req.path),
 });
 
-// Archivos estáticos — diplomas/certificados subidos
+// Archivos estáticos — certificados y fotos de portafolio subidos
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Swagger UI
@@ -57,6 +62,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/portfolio', portfolioRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

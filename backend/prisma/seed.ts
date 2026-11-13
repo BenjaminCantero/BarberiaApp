@@ -20,14 +20,14 @@ async function main() {
   });
 
   const barberUser = await prisma.user.upsert({
-    where: { email: 'carlos@barberia.com' },
+    where: { email: 'mateo@barberia.com' },
     update: {},
     create: {
-      name: 'Carlos López',
-      email: 'carlos@barberia.com',
+      name: 'Mateo Cayuman',
+      email: 'mateo@barberia.com',
       passwordHash: barberHash,
       role: Role.BARBER,
-      phone: '+34 611 222 333',
+      phone: '+56 9 8298 4323',
     },
   });
 
@@ -36,7 +36,8 @@ async function main() {
     update: {},
     create: {
       userId: barberUser.id,
-      bio: 'Barbero profesional con 10 años de experiencia. Especialista en cortes clásicos y barba.',
+      bio: 'Barbero colorista. Compite por calidad, no por precio.',
+      instagram: 'drgon.cut',
     },
   });
 
@@ -124,7 +125,7 @@ async function main() {
 
   console.log('Seed completado:');
   console.log('  Admin:   admin@barberia.com / Admin1234');
-  console.log('  Barbero: carlos@barberia.com / Barber1234');
+  console.log('  Barbero: mateo@barberia.com / Barber1234');
   console.log('  Cliente: cliente@example.com / Client1234');
 }
 

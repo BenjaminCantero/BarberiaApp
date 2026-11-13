@@ -3,6 +3,7 @@ import { AppError } from '../middlewares/error.middleware';
 import type { UpdateBarberInput, SetScheduleInput } from '../schemas/barber.schema';
 import { getAvailableSlots } from './availability.service';
 import { getRatingSummary, getRatingSummaries } from './review.service';
+import { normalizeInstagram } from '../lib/instagram';
 
 export async function getMyBarber(userId: string) {
   const barber = await prisma.barber.findUnique({
@@ -63,7 +64,14 @@ export async function updateBarber(id: string, requesterId: string, requesterRol
     throw new AppError(403, 'Sin permisos para editar este barbero');
   }
 
-  return prisma.barber.update({ where: { id }, data });
+  return prisma.barber.update({
+    where: { id },
+    data: {
+      isActive: data.isActive,
+      bio: data.bio === undefined ? undefined : data.bio.trim() || null,
+      instagram: normalizeInstagram(data.instagram),
+    },
+  });
 }
 
 export async function setSchedule(barberId: string, requesterId: string, requesterRole: string, input: SetScheduleInput) {

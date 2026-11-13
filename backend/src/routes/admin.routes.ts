@@ -10,6 +10,8 @@ import {
 } from '../schemas/admin.schema';
 import { createServiceSchema, updateServiceSchema } from '../schemas/service.schema';
 import * as adminController from '../controllers/admin.controller';
+import * as portfolioController from '../controllers/portfolio.controller';
+import { portfolioReviewQuerySchema, portfolioReviewSchema } from '../schemas/portfolio.schema';
 
 const router = Router();
 
@@ -38,5 +40,9 @@ router.get('/services', adminController.listServices);
 router.post('/services', validate(createServiceSchema), adminController.createService);
 router.patch('/services/:id', validate(updateServiceSchema), adminController.updateService);
 router.delete('/services/:id', adminController.deleteService);
+
+// Moderación del portafolio
+router.get('/portfolio', validate(portfolioReviewQuerySchema), portfolioController.listForReview);
+router.patch('/portfolio/:photoId', validate(portfolioReviewSchema), portfolioController.review);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 
 export class AppError extends Error {
   constructor(
@@ -18,6 +19,17 @@ export function errorHandler(
 ): void {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ message: err.message });
+    return;
+  }
+
+  // Errores de subida (tamaño excedido, tipo de archivo no permitido)
+  if (err instanceof multer.MulterError) {
+    const message = err.code === 'LIMIT_FILE_SIZE' ? 'El archivo es demasiado grande' : 'Archivo inválido';
+    res.status(400).json({ message });
+    return;
+  }
+  if (err.message?.startsWith('Solo se permiten')) {
+    res.status(400).json({ message: err.message });
     return;
   }
 

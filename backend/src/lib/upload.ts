@@ -36,3 +36,17 @@ export const certificateUpload = multer({
     }
   },
 });
+
+const PORTFOLIO_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+
+export const portfolioUpload = multer({
+  storage,
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB
+  fileFilter: (_req, file, cb) => {
+    if (PORTFOLIO_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes JPG, PNG o WebP'));
+    }
+  },
+});
