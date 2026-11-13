@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { useLogout } from '../hooks/useAuth';
 import { useMyBarber } from '../hooks/useBarbers';
+import { ThemeToggle } from './ThemeToggle';
 
 const ROLE_LABEL = { ADMIN: 'Administrador', BARBER: 'Barbero', CLIENT: 'Cliente' } as const;
 const DASHBOARD = { ADMIN: '/dashboard/admin', BARBER: '/dashboard/barber', CLIENT: '/dashboard/client' } as const;
@@ -81,6 +82,7 @@ export function AppNavbar() {
       </nav>
 
       <div className="nav-actions">
+        <ThemeToggle />
         <Link to="/barbers" className="btn-primary btn-sm nav-cta">Reservar hora</Link>
 
         {loggedIn ? (

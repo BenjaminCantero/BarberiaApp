@@ -7,6 +7,16 @@
     <meta name="theme-color" content="#0c0b0d" />
     <meta name="description" content="Reserva tu hora en Dragon Studio, barbería en Nueva Imperial. Elige tu servicio y horario, sin crear una cuenta." />
     <title>Dragon Studio · Reserva tu hora</title>
+    <script>
+      // Aplica el tema antes de pintar para evitar un destello del tema equivocado.
+      (function () {
+        var t;
+        try { t = localStorage.getItem('theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = t;
+        document.querySelector('meta[name="theme-color"]').content = t === 'light' ? '#f6f4ef' : '#0c0b0d';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
