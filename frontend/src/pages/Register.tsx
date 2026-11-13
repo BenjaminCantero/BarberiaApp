@@ -29,7 +29,7 @@ export function Register() {
 
   return (
     <div className="app-shell grid min-h-screen place-items-center p-4">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl shadow-slate-950/15 md:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid w-full max-w-5xl overflow-hidden auth-card md:grid-cols-[1.05fr_0.95fr]">
         <section className="p-6 sm:p-8 md:p-10">
           <Link to="/" className="brand-mark mb-8">
             <span className="brand-icon">DS</span>
@@ -68,14 +68,14 @@ export function Register() {
         </p>
         </section>
 
-        <aside className="hidden bg-slate-950 p-8 text-white md:flex md:flex-col md:justify-between">
-          <div className="rounded-lg border border-white/10 bg-white/10 p-5">
+        <aside className="auth-art hidden p-8 text-white md:flex md:flex-col md:justify-between">
+          <div className="rounded-lg border-2 border-white/80 bg-black/50 p-5">
             <p className="text-sm font-bold text-brand-300">Reserva clara</p>
             <p className="mt-2 text-3xl font-black">Servicio, precio y hora antes de confirmar en Dragon Studio.</p>
           </div>
           <div>
             <p className="section-eyebrow text-brand-300">Empieza hoy</p>
-            <h2 className="mt-3 text-4xl font-black leading-tight">Tu agenda de barbería, simple y elegante.</h2>
+            <h2 className="mt-3 text-5xl">Tu próxima hora, a un click.</h2>
           </div>
         </aside>
       </div>

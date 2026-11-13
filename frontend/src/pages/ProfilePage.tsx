@@ -67,7 +67,7 @@ export function ProfilePage() {
 
   return (
     <div className="app-shell">
-      <AppNavbar back={{ label: 'Mi panel', to: dashboardLink }} />
+      <AppNavbar />
 
       <main className="mx-auto max-w-2xl px-4 py-10">
         <p className="section-eyebrow">Cuenta</p>

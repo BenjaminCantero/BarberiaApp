@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { barberApi, type ScheduleEntry } from '../api/barber.api';
 
-export function useMyBarber() {
+export function useMyBarber(enabled = true) {
   return useQuery({
     queryKey: ['barbers', 'me'],
     queryFn: () => barberApi.getMe().then((r) => r.data),
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 
@@ -49,5 +50,13 @@ export function useSetSchedule(barberId: string) {
       qc.invalidateQueries({ queryKey: ['barbers', barberId] });
       qc.invalidateQueries({ queryKey: ['barbers', barberId, 'schedule'] });
     },
+  });
+}
+
+export function useUpdateBarber(barberId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { bio?: string; instagram?: string }) => barberApi.update(barberId, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['barbers'] }),
   });
 }

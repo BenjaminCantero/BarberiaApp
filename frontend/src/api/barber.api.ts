@@ -14,7 +14,8 @@ export interface Schedule {
 
 export interface Barber {
   id: string;
-  bio?: string;
+  bio?: string | null;
+  instagram?: string | null;
   isActive: boolean;
   user: { name: string; email: string; phone?: string; avatarUrl?: string };
   services: BarberService[];
@@ -43,7 +44,7 @@ export const barberApi = {
 
   getMe: () => api.get<Barber>('/barbers/me'),
 
-  update: (id: string, data: { bio?: string; isActive?: boolean }) =>
+  update: (id: string, data: { bio?: string; instagram?: string; isActive?: boolean }) =>
     api.patch<Barber>(`/barbers/${id}`, data),
 
   getSchedule: (id: string) => api.get<Schedule[]>(`/barbers/${id}/schedule`),

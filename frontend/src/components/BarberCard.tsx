@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Barber } from '../api/barber.api';
 import { StarRatingDisplay } from './StarRating';
+import { formatPrice } from '../lib/format';
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -17,21 +18,21 @@ export function BarberCard({ barber }: Props) {
     .slice(0, 2);
 
   return (
-    <div className="panel group flex flex-col gap-4 p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/10">
+    <div className="team-card group">
       <div className="flex items-center gap-4">
         {barber.user.avatarUrl ? (
           <img
             src={barber.user.avatarUrl}
             alt={barber.user.name}
-            className="h-16 w-16 rounded-lg object-cover ring-4 ring-brand-100"
+            className="!h-16 !w-16"
           />
         ) : (
-          <div className="grid h-16 w-16 place-items-center rounded-lg bg-slate-950 text-lg font-black text-brand-300 shadow-lg shadow-slate-950/15">
+          <div className="team-initials !h-16 !w-16 !text-xl" aria-hidden="true">
             {initials}
           </div>
         )}
         <div className="min-w-0">
-          <h3 className="truncate text-lg font-black text-slate-950">{barber.user.name}</h3>
+          <h3 className="truncate">{barber.user.name}</h3>
           {barber.rating && barber.rating.count > 0 ? (
             <StarRatingDisplay value={barber.rating.average} count={barber.rating.count} />
           ) : (
@@ -53,7 +54,7 @@ export function BarberCard({ barber }: Props) {
             key={service.id}
             className="chip"
           >
-            {service.name} · {service.durationMin}min · ${service.price}
+            {service.name} · {service.durationMin}min · {formatPrice(service.price)}
           </span>
         ))}
         {barber.services.length > 3 && (

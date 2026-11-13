@@ -23,7 +23,7 @@ export function ForgotPassword() {
 
   return (
     <div className="app-shell grid min-h-screen place-items-center p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl shadow-slate-950/15 sm:p-8">
+      <div className="w-full max-w-md auth-card p-6 sm:p-8">
         <Link to="/" className="brand-mark mb-8">
           <span className="brand-icon">DS</span>
           <span>Dragon Studio</span>

@@ -1,107 +1,211 @@
 import { Link } from 'react-router-dom';
+import { AppNavbar } from '../components/AppNavbar';
+import { HeroLogo } from '../components/HeroLogo';
+import { PortfolioGallery, STUDIO_FALLBACK, type GalleryItem } from '../components/PortfolioGallery';
+import { useBarbers } from '../hooks/useBarbers';
+import { usePublicPortfolio } from '../hooks/usePortfolio';
+import { formatPrice } from '../lib/format';
+import { InstagramIcon } from '../components/InstagramIcon';
 
-const FEATURES = [
-  { label: 'Barberos expertos', value: '12+', desc: 'Especialistas en cortes, barba y estilo clásico.' },
-  { label: 'Reserva rápida', value: '2 min', desc: 'Agendas tu hora sin esperas ni llamadas.' },
-  { label: 'Estilo premium', value: '100%', desc: 'Atención personalizada en un ambiente exclusivo.' },
-];
+const INSTAGRAM_URL = 'https://www.instagram.com/dragonstudio.cl/';
+const WHATSAPP_URL = 'https://wa.me/56982984323';
+const MAPS_URL = 'https://www.google.com/maps/search/?api=1&query=Soto+mayor+426+Nueva+Imperial';
 
-const STEPS = [
-  { step: '01', title: 'Elige tu barbero', desc: 'Revisa perfiles con estilos y especialidades claras.' },
-  { step: '02', title: 'Confirma tu horario', desc: 'Selecciona servicio, precio y fecha en segundos.' },
-  { step: '03', title: 'Disfruta el corte', desc: 'Llega a Dragon Studio y deja que tu estilo hable por ti.' },
-];
+function initials(name: string) {
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+}
 
 export function Home() {
+  const { data: barbers, isLoading, isError, refetch } = useBarbers();
+  const { data: photos } = usePublicPortfolio(12);
+
+  const services = [
+    ...new Map(
+      barbers?.flatMap((barber) =>
+        barber.services.map(({ service }) => [service.id, { ...service, barberId: barber.id }] as const),
+      ),
+    ).values(),
+  ];
+
+  const gallery: GalleryItem[] = photos?.length
+    ? photos.map((p) => ({
+        id: p.id,
+        src: p.imageUrl,
+        alt: p.caption ? `Trabajo: ${p.caption}` : `Trabajo de ${p.barber?.user.name ?? 'Dragon Studio'}`,
+        caption: p.caption,
+        barber: p.barber ? { id: p.barber.id, name: p.barber.user.name } : undefined,
+      }))
+    : STUDIO_FALLBACK;
+  const usingFallback = !photos?.length;
+
   return (
-    <div className="app-shell-dark">
-      <nav className="app-nav app-nav-dark flex items-center justify-between">
-        <Link to="/" className="brand-mark text-white">
-          <span className="brand-icon">DS</span>
-          <span>Dragon Studio</span>
-        </Link>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link to="/barbers" className="hidden text-sm font-semibold text-slate-200 transition hover:text-white sm:inline">
-            Barberos
-          </Link>
-          <Link to="/login" className="btn-secondary min-h-10 border-white/20 bg-white/10 px-4 text-white hover:bg-white/20">
-            Entrar
-          </Link>
-          <Link to="/register" className="btn-brand min-h-10 px-4">
-            Reservar
-          </Link>
-        </div>
-      </nav>
-
+    <div className="app-shell dragon-home">
+      <AppNavbar />
       <main>
-        <section className="mx-auto grid min-h-[calc(100vh-72px)] max-w-7xl items-center gap-10 px-4 py-12 md:grid-cols-[1.05fr_0.95fr] md:px-8 lg:py-16">
-          <div className="max-w-3xl">
-            <p className="section-eyebrow text-brand-300">Dragon Studio</p>
-            <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
-              La barbería que lleva tu estilo al siguiente nivel.
-            </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">
-              Reserva tu corte, barba o diseño de cejas con barberos expertos y atención premium en un solo lugar.
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <section className="hero speed-lines">
+          <div className="hero-inner">
+            <HeroLogo />
+            <h1>Tu estilo. Nuestro oficio.</h1>
+            <p className="hero-copy">
+              Fades limpios, diseños a mano y barba bien perfilada. Elige tu servicio, toma tu hora y deja el resto al
+              equipo.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/barbers" className="btn-brand px-7">
-                Ver barberos
-              </Link>
-              <Link to="/register" className="btn-secondary border-white/20 bg-white/10 px-7 text-white hover:bg-white/20">
-                Reservar ahora
-              </Link>
+            <div className="hero-ctas">
+              <a href="#servicios" className="btn-primary">Reservar mi hora <span aria-hidden="true">↗</span></a>
+              <a href="#trabajos" className="btn-secondary">Ver trabajos</a>
             </div>
-          </div>
-
-          <div className="surface border-white/20 bg-slate-950/50 p-4 text-white">
-            <div className="overflow-hidden rounded-lg">
-              <img
-                src="https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?auto=format&fit=crop&w=900&q=80"
-                alt="Barbero preparando un corte en una barbería moderna"
-                className="h-64 w-full object-cover sm:h-80 lg:h-[25rem]"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3 pt-4">
-              {FEATURES.map((item) => (
-                <div key={item.label} className="rounded-lg border border-white/10 bg-white/10 p-3">
-                  <p className="text-2xl font-black text-brand-300">{item.value}</p>
-                  <p className="mt-1 text-xs font-bold text-white">{item.label}</p>
-                </div>
-              ))}
+            <span className="hero-note">Sin crear cuenta · Recordatorio por correo</span>
+            <div className="hero-facts">
+              <span>Soto Mayor 426, Nueva Imperial</span>
+              <a href="tel:+56982984323">+56 9 8298 4323</a>
+              <a href={WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp ↗</a>
             </div>
           </div>
         </section>
 
-        <section className="bg-slate-50 text-slate-900">
-          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 md:grid-cols-[0.8fr_1.2fr] md:px-8">
-            <div>
-              <p className="section-eyebrow">Cómo funciona</p>
-              <h2 className="mt-3 text-3xl font-black tracking-normal sm:text-4xl">De la idea al sillón en tres pasos.</h2>
-              <p className="mt-4 text-slate-600">
-                Dragon Studio mantiene la reserva simple para clientes y ordenada para cada barbero.
-              </p>
+        <div className="home-wrap">
+          {/* ── Trabajos ───────────────────────────────────────────────────── */}
+          <section id="trabajos" className="home-section">
+            <div className="section-head">
+              <div>
+                <p className="section-eyebrow">Galería</p>
+                <h2>Trabajos del estudio</h2>
+              </div>
+              <a className="text-link" href={INSTAGRAM_URL} target="_blank" rel="noreferrer">
+                Más en Instagram @dragonstudio.cl ↗
+              </a>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {STEPS.map((item) => (
-                <article key={item.step} className="panel p-5">
-                  <span className="chip">{item.step}</span>
-                  <h3 className="mt-4 text-lg font-black text-slate-950">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.desc}</p>
-                </article>
-              ))}
-            </div>
+            <PortfolioGallery items={gallery} showBarber={!usingFallback} max={12} />
+            {usingFallback && <p className="gallery-note">Fotos del Instagram del estudio. Pronto, los trabajos de cada barbero.</p>}
+          </section>
+
+          {/* ── Servicios + tarjeta del estudio ────────────────────────────── */}
+          <div className="home-grid home-section">
+            <section id="servicios">
+              <div className="section-head">
+                <div>
+                  <p className="section-eyebrow">Paso 1</p>
+                  <h2>Elige tu servicio</h2>
+                </div>
+                <p>Después eliges barbero y horario.</p>
+              </div>
+
+              {isLoading && <p role="status" className="text-slate-500">Cargando servicios…</p>}
+              {isError && (
+                <div role="alert" className="panel p-6">
+                  <p>No pudimos cargar los servicios.</p>
+                  <button className="btn-secondary mt-4" onClick={() => refetch()}>Volver a intentar</button>
+                </div>
+              )}
+              {!isLoading && !isError && services.length === 0 && (
+                <p className="panel p-6">Estamos preparando la agenda. Escríbenos por WhatsApp para coordinar tu hora.</p>
+              )}
+
+              <div className="service-list">
+                {services.map((service, i) => (
+                  <Link
+                    className="service-row"
+                    key={service.id}
+                    to={`/barbers/${service.barberId}?serviceId=${encodeURIComponent(service.id)}`}
+                  >
+                    <span className="service-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                      <h3>{service.name}</h3>
+                      <p>{service.durationMin} min{service.description ? ` · ${service.description}` : ''}</p>
+                    </div>
+                    <strong>{formatPrice(service.price)}</strong>
+                    <span className="arrow" aria-hidden="true">↗</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <aside className="shop-card">
+              <img src="/brand/dragon-logo.webp" width="96" height="96" alt="Logo de Dragon Studio" />
+              <h2>Dragon Studio</h2>
+              <p>Servicio de barbería premium privado.</p>
+              <a className="btn-primary" href="#servicios">Elegir servicio</a>
+              <dl>
+                <div><dt>Dónde</dt><dd>Soto Mayor 426<br />Nueva Imperial, Chile</dd></div>
+                <div><dt>Contacto</dt><dd><a href="tel:+56982984323">+56 9 8298 4323</a></dd></div>
+                <div><dt>Reserva</dt><dd>Servicio, horario y listo. Solo pedimos nombre y correo.</dd></div>
+              </dl>
+              <div className="shop-links">
+                <a href={WHATSAPP_URL} target="_blank" rel="noreferrer">Escríbenos por WhatsApp ↗</a>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">Instagram ↗</a>
+              </div>
+            </aside>
           </div>
-          <div className="mx-auto grid max-w-7xl gap-4 px-4 pb-14 md:grid-cols-3 md:px-8">
-            {FEATURES.map((item) => (
-              <article key={item.desc} className="panel p-6">
-                <p className="text-sm font-black uppercase tracking-[0.16em] text-brand-700">{item.label}</p>
-                <p className="mt-3 text-3xl font-black text-slate-950">{item.value}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{item.desc}</p>
-              </article>
-            ))}
+
+          {/* ── Equipo ─────────────────────────────────────────────────────── */}
+          {!!barbers?.length && (
+            <section className="home-section">
+              <div className="section-head">
+                <div>
+                  <p className="section-eyebrow">El equipo</p>
+                  <h2>Elige quién te atiende</h2>
+                </div>
+                <Link className="text-link" to="/barbers">Ver todos ↗</Link>
+              </div>
+              <div className="team-grid">
+                {barbers.map((barber) => (
+                  <Link to={`/barbers/${barber.id}`} className="team-card" key={barber.id}>
+                    {barber.user.avatarUrl ? (
+                      <img src={barber.user.avatarUrl} alt="" width="72" height="72" />
+                    ) : (
+                      <span className="team-initials" aria-hidden="true">{initials(barber.user.name)}</span>
+                    )}
+                    <div>
+                      <h3>{barber.user.name}</h3>
+                      {barber.instagram && (
+                        <span className="team-ig"><InstagramIcon size={13} /> @{barber.instagram}</span>
+                      )}
+                    </div>
+                    <p>{barber.bio || 'Revisa sus trabajos y encuentra tu hora.'}</p>
+                    <span className="go">Ver trabajos y reservar ↗</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Sobre el estudio ───────────────────────────────────────────── */}
+          <section className="about home-section">
+            <div className="about-media">
+              <img src="/brand/galeria/barbero-trabajando.webp" alt="Barbero trabajando en el estudio" loading="lazy" width="817" height="872" />
+              <img src="/brand/galeria/maquina-anime.webp" alt="Máquina personalizada con diseño de anime" loading="lazy" width="817" height="872" />
+            </div>
+            <div>
+              <p className="section-eyebrow">El estudio</p>
+              <h2 className="mt-3">El detalle hace<br />la diferencia.</h2>
+              <p>
+                Luces hexagonales, pósters de anime en la pared y un equipo dedicado al corte, la barba y a encontrar tu
+                estilo. Reserva tu hora, ven al estudio y deja el resto en nuestras manos.
+              </p>
+              <a className="btn-secondary" href={MAPS_URL} target="_blank" rel="noreferrer">Cómo llegar ↗</a>
+            </div>
+          </section>
+        </div>
+
+        <section className="final-cta">
+          <div className="final-cta-inner">
+            <h2>Tu próxima hora<br />empieza aquí.</h2>
+            <a href="#servicios" className="btn-primary">Reservar hora ↗</a>
           </div>
         </section>
       </main>
+
+      <footer className="dragon-footer">
+        <Link to="/" className="brand-mark">Dragon Studio</Link>
+        <nav aria-label="Pie de página">
+          <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer">Instagram</a>
+          <a href={WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp</a>
+          <Link to="/barbers">Barberos</Link>
+          <Link to="/login">Acceso del equipo</Link>
+        </nav>
+        <span>Soto Mayor 426 · Nueva Imperial, Chile</span>
+      </footer>
     </div>
   );
 }

@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useBarber, useAvailability } from '../hooks/useBarbers';
-import { useAuthStore } from '../store/auth.store';
 import { AppNavbar } from '../components/AppNavbar';
 import { useCertificates } from '../hooks/useCertificates';
+import { useBarberPortfolio } from '../hooks/usePortfolio';
+import { PortfolioGallery } from '../components/PortfolioGallery';
 import { useBarberReviews } from '../hooks/useReviews';
 import { StarRatingDisplay } from '../components/StarRating';
 import type { Schedule } from '../api/barber.api';
+import { formatPrice } from '../lib/format';
+import { instagramUrl } from '../lib/instagram';
+import { InstagramIcon } from '../components/InstagramIcon';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -48,11 +52,11 @@ function nextAvailableDate(schedules: Schedule[]): string {
 
 export function BarberProfile() {
   const { id } = useParams<{ id: string }>();
-  const { accessToken, user } = useAuthStore();
+  const [params] = useSearchParams();
   const { data: barber, isLoading, isError } = useBarber(id!);
 
   const [selectedDate, setSelectedDate] = useState(localDateStr());
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(params.get('serviceId') || '');
 
   // Cuando carga el horario del barbero, saltar al primer día disponible
   useEffect(() => {
@@ -73,6 +77,7 @@ export function BarberProfile() {
 
   const { data: certificates } = useCertificates(id ?? '');
   const { data: reviewsData } = useBarberReviews(id ?? '');
+  const { data: portfolio } = useBarberPortfolio(id ?? '');
 
   if (isLoading) {
     return (
@@ -97,20 +102,18 @@ export function BarberProfile() {
 
   return (
     <div className="app-shell">
-      <AppNavbar back={{ label: 'Barberos', to: '/barbers' }} />
+      <AppNavbar />
 
       <main className="page-container grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-6">
-          <div className="surface p-6 text-center">
+          <div className="profile-hero">
             {barber.user.avatarUrl ? (
-              <img src={barber.user.avatarUrl} alt={barber.user.name}
-                className="mx-auto mb-4 h-28 w-28 rounded-lg object-cover ring-4 ring-brand-100" />
+              <img src={barber.user.avatarUrl} alt={barber.user.name} className="profile-avatar" />
             ) : (
-              <div className="mx-auto mb-4 grid h-28 w-28 place-items-center rounded-lg bg-slate-950 text-3xl font-black text-brand-300 shadow-lg shadow-slate-950/15">
-                {initials}
-              </div>
+              <div className="profile-avatar" aria-hidden="true">{initials}</div>
             )}
-            <h1 className="text-2xl font-black text-slate-950">{barber.user.name}</h1>
+            <p className="section-eyebrow">Barbero · Dragon Studio</p>
+            <h1 className="mt-2 text-3xl">{barber.user.name}</h1>
             {barber.rating && barber.rating.count > 0 && (
               <div className="mt-2 flex justify-center">
                 <StarRatingDisplay value={barber.rating.average} count={barber.rating.count} size="md" />
@@ -118,6 +121,11 @@ export function BarberProfile() {
             )}
             {barber.user.phone && <p className="mt-1 text-sm text-slate-500">{barber.user.phone}</p>}
             {barber.bio && <p className="mt-3 text-sm leading-6 text-slate-600">{barber.bio}</p>}
+            {barber.instagram && (
+              <a className="ig-link mt-4" href={instagramUrl(barber.instagram)} target="_blank" rel="noreferrer">
+                <InstagramIcon /> @{barber.instagram}
+              </a>
+            )}
           </div>
 
           {barber.schedules && barber.schedules.length > 0 && (
@@ -143,7 +151,7 @@ export function BarberProfile() {
                 {certificates.map((cert) => (
                   <a
                     key={cert.id}
-                    href={`http://localhost:3000${cert.fileUrl}`}
+                    href={cert.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group rounded-3xl border border-slate-200 bg-white p-4 transition hover:shadow-lg"
@@ -173,7 +181,7 @@ export function BarberProfile() {
                     )}
                     <p className="text-xs text-slate-400">{service.durationMin} min</p>
                   </div>
-                  <span className="font-black text-brand-700">${service.price}</span>
+                  <span className="font-black text-brand-300">{formatPrice(service.price)}</span>
                 </div>
               ))}
             </div>
@@ -205,8 +213,9 @@ export function BarberProfile() {
 
         <div className="lg:col-span-2 space-y-6">
           <div className="surface p-6 md:p-8">
-            <p className="section-eyebrow">Reserva online</p>
-            <h2 className="mb-6 mt-2 text-3xl font-black text-slate-950">Elige tu hora</h2>
+            <p className="section-eyebrow">Reserva</p>
+            <h2 className="panel-title mb-3 mt-2 !text-3xl">Elige tu hora</h2>
+            <p className="mb-6 text-sm text-slate-500">Elige servicio, fecha y horario. Al confirmar solo te pediremos tus datos de contacto.</p>
 
             <div className="mb-5">
               <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -215,6 +224,7 @@ export function BarberProfile() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {barber.services.map(({ service }) => (
                   <button
+                    aria-pressed={selectedServiceId === service.id}
                     key={service.id}
                     onClick={() => setSelectedServiceId(service.id)}
                     className={`rounded-lg border p-4 text-left transition ${
@@ -224,17 +234,18 @@ export function BarberProfile() {
                     }`}
                   >
                     <p className="text-sm font-black text-slate-800">{service.name}</p>
-                    <p className="text-xs text-slate-500">{service.durationMin} min · ${service.price}</p>
+                    <p className="text-sm text-slate-500">{service.durationMin} min · {formatPrice(service.price)}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="mb-5">
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <label htmlFor="booking-date" className="mb-2 block text-sm font-bold text-slate-700">
                 2. Elige una fecha
               </label>
               <input
+                id="booking-date"
                 type="date"
                 value={selectedDate}
                 min={localDateStr()}
@@ -277,44 +288,39 @@ export function BarberProfile() {
 
               {selectedServiceId && !loadingSlots && !slotsError && slots && slots.length > 0 && (
                 <>
-                  {accessToken && user?.role !== 'CLIENT' && (
-                    <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm font-medium text-amber-800">
-                      Las reservas son solo para clientes. Tu cuenta es de tipo {user?.role.toLowerCase()}.
-                    </p>
-                  )}
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {slots.map((slot) => {
-                      const isClient = accessToken && user?.role === 'CLIENT';
-                      const notLoggedIn = !accessToken;
-                      if (isClient || notLoggedIn) {
-                        const to = isClient
-                          ? `/booking?barberId=${id}&serviceId=${selectedServiceId}&startAt=${encodeURIComponent(slot.startAt)}`
-                          : `/login?redirect=/barbers/${id}`;
+                        const to = `/booking?barberId=${id}&serviceId=${selectedServiceId}&startAt=${encodeURIComponent(slot.startAt)}`;
                         return (
                           <Link
                             key={slot.startAt}
                             to={to}
-                            className="rounded-lg border border-brand-200 bg-white py-2 text-center text-sm font-bold text-brand-700 transition hover:border-brand-400 hover:bg-brand-50"
+                            className="slot-link rounded-lg border border-brand-200 bg-white py-2 text-center text-sm font-bold text-brand-700 transition hover:border-brand-400 hover:bg-brand-50"
                           >
                             {slot.startTime}
                           </Link>
                         );
-                      }
-                      return (
-                        <span
-                          key={slot.startAt}
-                          className="rounded-lg border border-slate-200 bg-slate-50 py-2 text-center text-sm font-bold text-slate-400 cursor-not-allowed"
-                          title="Solo clientes pueden reservar"
-                        >
-                          {slot.startTime}
-                        </span>
-                      );
                     })}
                   </div>
                 </>
               )}
             </div>
           </div>
+
+          {!!portfolio?.length && (
+            <section className="surface p-6 md:p-8" aria-labelledby="portfolio-title">
+              <p className="section-eyebrow">Portafolio</p>
+              <h2 id="portfolio-title" className="panel-title mb-5 mt-2 !text-3xl">Sus trabajos</h2>
+              <PortfolioGallery
+                items={portfolio.map((p) => ({
+                  id: p.id,
+                  src: p.imageUrl,
+                  alt: p.caption ? `Trabajo: ${p.caption}` : `Trabajo de ${barber.user.name}`,
+                  caption: p.caption,
+                }))}
+              />
+            </section>
+          )}
         </div>
       </main>
     </div>

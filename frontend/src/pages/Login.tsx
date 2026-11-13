@@ -16,17 +16,16 @@ export function Login() {
 
   return (
     <div className="app-shell grid min-h-screen place-items-center p-4">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl shadow-slate-950/15 md:grid-cols-[0.95fr_1.05fr]">
-        <aside className="hidden bg-slate-950 p-8 text-white md:flex md:flex-col md:justify-between">
+      <div className="auth-card grid w-full max-w-5xl md:grid-cols-[0.95fr_1.05fr]">
+        <aside className="auth-art hidden p-8 text-white md:flex md:flex-col md:justify-between">
           <Link to="/" className="brand-mark text-white">
             <span className="brand-icon">DS</span>
             <span>Dragon Studio</span>
           </Link>
           <div>
-            <p className="section-eyebrow text-brand-300">Bienvenido de vuelta</p>
-            <h2 className="mt-3 text-4xl font-black leading-tight">Tu próxima cita está a un paso.</h2>
+            <h2 className="text-5xl">El estudio,<br />en orden.</h2>
             <p className="mt-4 text-sm leading-6 text-slate-300">
-              Ingresa para revisar reservas, confirmar horarios y volver a agendar con tus barberos favoritos.
+              Gestiona tu agenda, confirma las reservas y prepara el día en Dragon Studio. Si vienes por un corte, puedes reservar sin iniciar sesión.
             </p>
           </div>
         </aside>
@@ -41,8 +40,10 @@ export function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700">Email</label>
+            <label htmlFor="login-email" className="mb-1.5 block text-sm font-bold text-slate-700">Correo electrónico</label>
             <input
+              id="login-email"
+              autoComplete="username"
               type="email"
               required
               value={form.email}
@@ -54,12 +55,14 @@ export function Login() {
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="block text-sm font-bold text-slate-700">Contraseña</label>
+              <label htmlFor="login-password" className="block text-sm font-bold text-slate-700">Contraseña</label>
               <Link to="/forgot-password" className="text-sm font-semibold text-brand-700 hover:underline">
                 ¿La olvidaste?
               </Link>
             </div>
             <input
+              id="login-password"
+              autoComplete="current-password"
               type="password"
               required
               value={form.password}

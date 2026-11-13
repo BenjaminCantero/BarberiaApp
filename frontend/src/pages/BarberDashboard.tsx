@@ -1,11 +1,12 @@
-  import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { AppNavbar } from '../components/AppNavbar';
 import { useAuthStore } from '../store/auth.store';
-import { useLogout } from '../hooks/useAuth';
 import { useMyBarber, useBarberSchedule, useSetSchedule } from '../hooks/useBarbers';
 import { useMyAppointments } from '../hooks/useAppointments';
 import { AppointmentCard } from '../components/AppointmentCard';
 import { useCertificates, useUploadCertificate, useDeleteCertificate } from '../hooks/useCertificates';
+import { PortfolioManager } from '../components/PortfolioManager';
+import { BarberProfileForm } from '../components/BarberProfileForm';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -18,7 +19,6 @@ function localDateStr(d: Date = new Date()): string {
 
 export function BarberDashboard() {
   const { user } = useAuthStore();
-  const logout = useLogout();
 
   const { data: myBarber, isLoading: loadingBarber } = useMyBarber();
   const { data: schedule } = useBarberSchedule(myBarber?.id ?? '');
@@ -31,7 +31,7 @@ export function BarberDashboard() {
   const [scheduleForm, setScheduleForm] = useState(
     [1, 2, 3, 4, 5].map((day) => ({ dayOfWeek: day, startTime: '09:00', endTime: '18:00', isActive: true })),
   );
-  const [activeTab, setActiveTab] = useState<'agenda' | 'schedule' | 'services' | 'certificates'>('agenda');
+  const [activeTab, setActiveTab] = useState<'agenda' | 'portfolio' | 'profile' | 'schedule' | 'services' | 'certificates'>('agenda');
 
   // Certificados
   const { data: certificates, isLoading: loadingCerts } = useCertificates(myBarber?.id ?? '');
@@ -78,32 +78,10 @@ export function BarberDashboard() {
 
   return (
     <div className="app-shell">
-      <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
-        <Link to="/" className="brand-mark">
-          <span className="brand-icon">DS</span>
-          <span>Dragon Studio</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          {myBarber && (
-            <Link
-              to={`/barbers/${myBarber.id}`}
-              className="hidden text-sm font-semibold text-slate-500 hover:text-slate-900 sm:inline"
-            >
-              Perfil público
-            </Link>
-          )}
-          <Link to="/profile" className="text-sm font-medium text-slate-500 hover:text-slate-900">
-            Mi perfil
-          </Link>
-          <span className="text-sm font-medium text-slate-600">{user?.name?.split(' ')[0]}</span>
-          <button onClick={() => logout.mutate()} className="text-sm font-bold text-red-600 hover:underline">
-            Salir
-          </button>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <main className="mx-auto max-w-4xl px-4 py-10">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-950 p-6 text-white">
+        <div className="dash-hero mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="section-eyebrow text-brand-300">Panel barbero</p>
             <h1 className="mt-2 text-3xl font-black">Bienvenido, {user?.name?.split(' ')[0]}</h1>
@@ -116,16 +94,16 @@ export function BarberDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
-          {(['agenda', 'schedule', 'services', 'certificates'] as const).map((tab) => (
+        <div className="tabs mb-6" role="tablist">
+          {(['agenda', 'portfolio', 'profile', 'schedule', 'services', 'certificates'] as const).map((tab) => (
             <button
               key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
-              className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
-                activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-              }`}
+              className={activeTab === tab ? 'is-active' : ''}
             >
-              {{ agenda: 'Agenda', schedule: 'Horario', services: 'Servicios', certificates: 'Diplomas' }[tab]}
+              {{ agenda: 'Agenda', portfolio: 'Mis trabajos', profile: 'Perfil', schedule: 'Horario', services: 'Servicios', certificates: 'Diplomas' }[tab]}
             </button>
           ))}
         </div>
@@ -264,6 +242,12 @@ export function BarberDashboard() {
             )}
           </div>
         )}
+        {/* PERFIL PÚBLICO */}
+        {activeTab === 'profile' && myBarber && <BarberProfileForm barber={myBarber} />}
+
+        {/* PORTAFOLIO */}
+        {activeTab === 'portfolio' && myBarber && <PortfolioManager barberId={myBarber.id} />}
+
         {/* DIPLOMAS / CERTIFICADOS */}
         {activeTab === 'certificates' && (
           <div className="space-y-6">
@@ -368,7 +352,7 @@ export function BarberDashboard() {
                       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-center">
                         {cert.fileType === 'image' ? (
                           <img
-                            src={`http://localhost:3000${cert.fileUrl}`}
+                            src={cert.fileUrl}
                             alt={cert.title}
                             className="h-full w-full object-cover"
                           />
@@ -391,7 +375,7 @@ export function BarberDashboard() {
 
                       <div className="flex shrink-0 gap-2">
                         <a
-                          href={`http://localhost:3000${cert.fileUrl}`}
+                          href={cert.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs font-bold text-brand-600 hover:text-brand-800 underline"

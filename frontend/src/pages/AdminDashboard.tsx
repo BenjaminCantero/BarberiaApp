@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { AppNavbar } from '../components/AppNavbar';
 import { useAuthStore } from '../store/auth.store';
-import { useLogout } from '../hooks/useAuth';
 import {
   useAdminStats,
   useAdminReports,
@@ -15,8 +14,10 @@ import {
   useUpdateService,
 } from '../hooks/useAdmin';
 import type { AdminUser } from '../api/admin.api';
+import { PortfolioModeration } from '../components/PortfolioModeration';
+import { usePortfolioReviewQueue } from '../hooks/usePortfolio';
 
-type Tab = 'overview' | 'reports' | 'users' | 'services' | 'appointments';
+type Tab = 'overview' | 'reports' | 'users' | 'services' | 'appointments' | 'portfolio';
 
 const money = (n: number) => `${n.toFixed(2)} €`;
 
@@ -686,8 +687,9 @@ function AppointmentsPanel() {
 
 export function AdminDashboard() {
   const { user } = useAuthStore();
-  const logout = useLogout();
   const [tab, setTab] = useState<Tab>('overview');
+  const { data: pendingPhotos } = usePortfolioReviewQueue('PENDING');
+  const pendingCount = pendingPhotos?.length ?? 0;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Resumen' },
@@ -695,36 +697,15 @@ export function AdminDashboard() {
     { id: 'users', label: 'Usuarios' },
     { id: 'services', label: 'Servicios' },
     { id: 'appointments', label: 'Citas' },
+    { id: 'portfolio', label: pendingCount ? `Galería (${pendingCount})` : 'Galería' },
   ];
 
   return (
     <div className="app-shell">
-      <nav className="app-nav flex flex-wrap items-center justify-between gap-3">
-        <Link to="/" className="brand-mark">
-          <span className="brand-icon">DS</span>
-          <span>Dragon Studio</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/profile"
-            className="text-sm font-medium text-slate-600 hover:text-slate-900"
-          >
-            {user?.name}
-          </Link>
-          <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-700">
-            ADMIN
-          </span>
-          <button
-            onClick={() => logout.mutate()}
-            className="text-sm font-bold text-red-600 hover:underline"
-          >
-            Salir
-          </button>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6">
+        <div className="dash-hero mb-6">
           <p className="section-eyebrow">Panel administrador</p>
           <h1 className="mt-1 text-3xl font-black text-slate-900">
             Bienvenido, {user?.name?.split(' ')[0]}
@@ -732,16 +713,14 @@ export function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <div className="tabs mb-6" role="tablist">
           {tabs.map((t) => (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 min-w-[80px] rounded-lg px-4 py-2 text-sm font-bold transition-all ${
-                tab === t.id
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
+              className={tab === t.id ? 'is-active' : ''}
             >
               {t.label}
             </button>
@@ -754,6 +733,7 @@ export function AdminDashboard() {
         {tab === 'users' && <UsersPanel />}
         {tab === 'services' && <ServicesPanel />}
         {tab === 'appointments' && <AppointmentsPanel />}
+        {tab === 'portfolio' && <PortfolioModeration />}
       </main>
     </div>
   );
