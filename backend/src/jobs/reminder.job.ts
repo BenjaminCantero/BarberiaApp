@@ -5,12 +5,13 @@ import * as notifications from '../services/notification.service';
 const REMINDER_SELECT = {
   id: true,
   startAt: true,
+  endAt: true,
   guestName: true,
   guestEmail: true,
   guestPhone: true,
   client: { select: { name: true, email: true } },
   barber: { select: { user: { select: { name: true, email: true } } } },
-  service: { select: { name: true } },
+  service: { select: { name: true, durationMin: true, price: true } },
 };
 
 /**

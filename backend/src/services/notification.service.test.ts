@@ -37,3 +37,24 @@ describe('notifyAppointmentCreated', () => {
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: 'mateo@barberia.com' }));
   });
 });
+
+describe('diseño del correo de reserva', () => {
+  it('incluye versión en texto, botón de calendario y archivo .ics para el cliente', async () => {
+    sendMail.mockResolvedValue({});
+    await notifyAppointmentCreated({ ...appt, service: { name: 'Corte', durationMin: 30, price: 12000 } });
+    const [client, barber] = sendMail.mock.calls.map(([m]) => m);
+    expect(client.html).toContain('calendar.google.com');
+    expect(client.html).toContain('$12.000');
+    expect(client.text).toMatch(/Tu cita está confirmada/);
+    expect(client.attachments[0]).toMatchObject({ filename: 'cita.ics' });
+    expect(client.attachments[0].content).toContain('DTSTART:20261201T130000Z');
+    expect(client.attachments[0].content).toContain('DTEND:20261201T133000Z');
+    expect(barber.attachments).toBeUndefined();
+  });
+
+  it('escapa el HTML de los nombres', async () => {
+    sendMail.mockResolvedValue({});
+    await notifyAppointmentCreated({ ...appt, client: { name: '<b>x</b>', email: 'ana@example.com' } });
+    expect(sendMail.mock.calls[0][0].html).not.toContain('<b>x</b>');
+  });
+});
